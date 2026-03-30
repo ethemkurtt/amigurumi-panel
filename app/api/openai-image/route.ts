@@ -20,22 +20,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
   }
 
-  // gpt-image-1 uses /v1/images/generations with image input (not /edits)
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
+  // Convert base64 to binary file for multipart upload
+  const buffer = Buffer.from(imageBase64, 'base64');
+  const imageBlob = new Blob([new Uint8Array(buffer)], { type: 'image/png' });
+
+  // gpt-image-1 on /v1/images/edits with multipart/form-data
+  const formData = new FormData();
+  formData.append('image', imageBlob, 'image.png');
+  formData.append('model', 'gpt-image-1');
+  formData.append('prompt', prompt);
+  formData.append('size', '1024x1024');
+  formData.append('quality', 'medium');
+
+  const response = await fetch('https://api.openai.com/v1/images/edits', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'gpt-image-1',
-      prompt: prompt,
-      input_image: {
-        image_base64: imageBase64,
-      },
-      size: '1024x1024',
-      quality: 'medium',
-    }),
+    body: formData,
   });
 
   const data = await response.json();
