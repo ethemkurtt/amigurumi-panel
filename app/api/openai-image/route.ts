@@ -27,9 +27,10 @@ export async function POST(req: NextRequest) {
   const formData = new FormData();
   formData.append('image', imageBlob, 'image.png');
   formData.append('prompt', prompt);
-  formData.append('model', 'gpt-image-1');
+  formData.append('model', 'dall-e-2');
   formData.append('response_format', 'b64_json');
   formData.append('size', '1024x1024');
+  formData.append('n', '1');
 
   const response = await fetch('https://api.openai.com/v1/images/edits', {
     method: 'POST',
