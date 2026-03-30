@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     .ensureAlpha()
     .png()
     .toBuffer();
-  const imageBlob = new Blob([rgbaBuffer], { type: 'image/png' });
+  const imageBlob = new Blob([new Uint8Array(rgbaBuffer)], { type: 'image/png' });
 
   const formData = new FormData();
   formData.append('image', imageBlob, 'image.png');
