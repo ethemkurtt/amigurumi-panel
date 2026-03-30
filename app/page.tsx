@@ -64,25 +64,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🧶</span>
-            <div>
-              <h1 className="text-lg font-bold text-white">Amigurumi Panel</h1>
-              <p className="text-xs text-white/40">AI Görsel Üretim Sistemi</p>
-            </div>
-          </div>
-          <Link
-            href="/generate"
-            className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 text-white font-medium px-4 py-2 rounded-xl transition-all duration-200 text-sm"
-          >
-            <span>+</span> Yeni Ürün
-          </Link>
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">

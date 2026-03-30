@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
-  title: "Amigurumi Panel – AI Görsel Üretim",
-  description: "ChatGPT DALL-E ve Google Gemini ile profesyonel amigurumi ürün görselleri üretin",
+  title: "Amigurumi Panel – AI Gorsel Uretim",
+  description: "OpenAI GPT Image ile profesyonel amigurumi urun gorselleri uretin",
 };
 
 export default function RootLayout({
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      <body className="min-h-screen bg-[#0a0a0f] text-white">{children}</body>
+      <body className="min-h-screen bg-[#0a0a0f] text-white">
+        <Navbar />
+        {children}
+      </body>
     </html>
   );
 }

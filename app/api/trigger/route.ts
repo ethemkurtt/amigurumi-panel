@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    const { productId, backgroundIds, type = 'generate' } = body;
+    const { productId, backgroundIds, type = 'generate', promptOptions } = body;
 
     if (!productId) {
       return NextResponse.json({ error: 'productId zorunlu' }, { status: 400 });
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       productName: product.name,
       referenceImageUrl: product.referenceImageUrl,
       backgroundIds: backgroundIds || [],
+      promptOptions: promptOptions || {},
       // n8n'in sonuclari geri gonderecegi URL
       callbackUrl: `${req.nextUrl.origin}/api/webhook/n8n`,
       // Mevcut urun bilgileri (PDF icin)

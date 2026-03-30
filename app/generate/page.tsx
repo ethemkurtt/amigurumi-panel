@@ -7,16 +7,65 @@ import BackgroundSelector from '@/components/BackgroundSelector';
 
 type Step = 'upload' | 'backgrounds' | 'processing' | 'done';
 
+const POSE_OPTIONS = [
+  { id: 'sitting', label: 'Oturan', emoji: '🧸' },
+  { id: 'standing', label: 'Ayakta', emoji: '🧍' },
+  { id: 'lying', label: 'Yatan', emoji: '😴' },
+  { id: 'playing', label: 'Oynayan', emoji: '🎮' },
+  { id: 'hugging', label: 'Sarilan', emoji: '🤗' },
+  { id: 'waving', label: 'El Sallayan', emoji: '👋' },
+];
+
+const STYLE_OPTIONS = [
+  { id: 'realistic', label: 'Gercekci', emoji: '📸' },
+  { id: 'soft-dreamy', label: 'Yumusak', emoji: '☁️' },
+  { id: 'bright-vivid', label: 'Canli', emoji: '🌈' },
+  { id: 'warm-cozy', label: 'Sicak', emoji: '🕯️' },
+  { id: 'minimal-clean', label: 'Minimal', emoji: '✨' },
+];
+
+const ANGLE_OPTIONS = [
+  { id: 'front', label: 'Ondan', emoji: '⬆️' },
+  { id: 'front-45', label: 'On 45°', emoji: '↗️' },
+  { id: 'side', label: 'Yandan', emoji: '➡️' },
+  { id: 'top-down', label: 'Ustden', emoji: '⬇️' },
+  { id: 'low-angle', label: 'Alttan', emoji: '⤴️' },
+];
+
 export default function GeneratePage() {
   const [productName, setProductName] = useState('');
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<string[]>([]);
+
+  // Gelismis prompt ayarlari
+  const [pose, setPose] = useState('sitting');
+  const [size, setSize] = useState('25');
+  const [style, setStyle] = useState('realistic');
+  const [angle, setAngle] = useState('front-45');
+  const [extraNotes, setExtraNotes] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [step, setStep] = useState<Step>('upload');
   const [productId, setProductId] = useState('');
   const [error, setError] = useState('');
   const [imageCount, setImageCount] = useState(0);
   const [pollCount, setPollCount] = useState(0);
+
+  // Ayarlardan varsayilanlari yukle
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        const s = data.settings;
+        if (s) {
+          setPose(s.defaultPose || 'sitting');
+          setSize(s.defaultSize || '25');
+          setStyle(s.defaultStyle || 'realistic');
+          setAngle(s.defaultAngle || 'front-45');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Step 1 → 2: Create product
   const handleStep1 = async () => {
@@ -52,6 +101,7 @@ export default function GeneratePage() {
           productId,
           backgroundIds: selectedBackgrounds,
           type: 'generate',
+          promptOptions: { pose, size, style, angle, extraNotes },
         }),
       });
       const data = await res.json();
@@ -92,27 +142,15 @@ export default function GeneratePage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/" className="text-white/50 hover:text-white transition-colors text-sm">← Geri</Link>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🧶</span>
-            <h1 className="text-base font-bold text-white">Yeni Urun Olustur</h1>
-          </div>
-          <span className="ml-auto flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-300 text-xs px-2.5 py-1 rounded-full">
-            Gemini AI
-          </span>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 py-10">
+      <main className="max-w-5xl mx-auto px-6 py-10">
+        <h2 className="text-xl font-bold text-white mb-2">Yeni Urun Olustur</h2>
+        <p className="text-white/40 text-sm mb-8">Gorsel yukleyin, ayarlari secin ve AI ile profesyonel urun gorselleri uretin.</p>
         {/* Stepper */}
         <div className="flex items-center gap-2 mb-10">
           {[
-            { key: 'upload', label: '1. Gorsel Yukle' },
+            { key: 'upload', label: '1. Gorsel & Ayarlar' },
             { key: 'backgrounds', label: '2. Konsept Sec' },
-            { key: 'processing', label: '3. Gemini Isliyor' },
+            { key: 'processing', label: '3. AI Isliyor' },
           ].map((s, i, arr) => {
             const isDone =
               (['backgrounds', 'processing', 'done'].includes(step) && s.key === 'upload') ||
@@ -137,20 +175,23 @@ export default function GeneratePage() {
           })}
         </div>
 
-        {/* ── STEP 1: Upload & Name ───────────────────────────────── */}
+        {/* ── STEP 1: Upload, Name & Prompt Options ───────────────── */}
         {step === 'upload' && (
           <div className="space-y-8">
             <div className="grid md:grid-cols-2 gap-8">
+              {/* Sol: Gorsel Yukle */}
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-white">Gorsel Yukle</h2>
                 <p className="text-white/50 text-sm">
-                  ChatGPT&apos;de duzenlediginiz gorseli buraya yukleyin. Gemini sectiginiz ev ortami konseptlerinde arka plan degistirecek.
+                  Amigurumi gorseli yukleyin. AI sectiginiz konseptlerde arka plan degistirecek.
                 </p>
                 <ImageUpload
                   onUpload={(url) => { setReferenceImageUrl(url); setError(''); }}
-                  label="Duzenlenmis Gorseli Yukle"
+                  label="Gorsel Yukle"
                 />
               </div>
+
+              {/* Sag: Urun Bilgileri */}
               <div className="space-y-5">
                 <h2 className="text-lg font-semibold text-white">Urun Bilgileri</h2>
                 <div>
@@ -159,22 +200,197 @@ export default function GeneratePage() {
                     type="text"
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
-                    placeholder="orn: Sevimli Tavsan Amigurumi"
+                    placeholder="orn: Zebra, Tavsan, Kedi..."
                     className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400 transition-colors"
                   />
                 </div>
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-2">
-                  <p className="text-blue-300 text-xs font-semibold">Akis</p>
-                  <ul className="text-blue-300/70 text-xs space-y-1">
-                    <li>1. ChatGPT&apos;de gorseli duzenleyin</li>
-                    <li>2. Duzenlenmis gorseli buraya yukleyin</li>
-                    <li>3. Ev ortami konseptlerini secin</li>
-                    <li>4. Gemini arka planlari degistirir</li>
-                    <li>5. Sonuclari indirin</li>
-                  </ul>
+
+                {/* Hizli Ayarlar */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Boyut */}
+                  <div>
+                    <label className="block text-xs text-white/50 mb-1.5">Boyut</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['15', '20', '25', '30', '40'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setSize(s)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            size === s
+                              ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {s}cm
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Poz */}
+                  <div>
+                    <label className="block text-xs text-white/50 mb-1.5">Poz</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {POSE_OPTIONS.slice(0, 4).map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setPose(p.id)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            pose === p.id
+                              ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          <span className="text-sm">{p.emoji}</span>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stil & Aci - Tek satir */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-white/50 mb-1.5">Stil</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {STYLE_OPTIONS.slice(0, 3).map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setStyle(s.id)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            style === s.id
+                              ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          <span className="text-sm">{s.emoji}</span>
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/50 mb-1.5">Aci</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {ANGLE_OPTIONS.slice(0, 3).map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => setAngle(a.id)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            angle === a.id
+                              ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          <span className="text-sm">{a.emoji}</span>
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gelismis Ayarlar Toggle */}
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  {showAdvanced ? '▼ Gelismis Ayarlari Gizle' : '▶ Gelismis Ayarlar'}
+                </button>
+
+                {showAdvanced && (
+                  <div className="space-y-4 bg-white/[0.03] border border-white/10 rounded-xl p-4">
+                    {/* Tum Poz Secenekleri */}
+                    <div>
+                      <label className="block text-xs text-white/50 mb-2">Tum Pozlar</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {POSE_OPTIONS.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setPose(p.id)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                              pose === p.id
+                                ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                                : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <span>{p.emoji}</span>
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tum Stil Secenekleri */}
+                    <div>
+                      <label className="block text-xs text-white/50 mb-2">Tum Stiller</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {STYLE_OPTIONS.map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => setStyle(s.id)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                              style === s.id
+                                ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                                : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <span>{s.emoji}</span>
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tum Aci Secenekleri */}
+                    <div>
+                      <label className="block text-xs text-white/50 mb-2">Tum Acilar</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {ANGLE_OPTIONS.map((a) => (
+                          <button
+                            key={a.id}
+                            onClick={() => setAngle(a.id)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                              angle === a.id
+                                ? 'bg-purple-500/20 border border-purple-500/40 text-purple-300'
+                                : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <span>{a.emoji}</span>
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Ek Notlar */}
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1.5">Ek Notlar (Opsiyonel)</label>
+                      <textarea
+                        value={extraNotes}
+                        onChange={(e) => setExtraNotes(e.target.value)}
+                        rows={2}
+                        placeholder="orn: Oyuncagin yanina kucuk cicekler ekle, yumusak isik olsun..."
+                        className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-white/20 text-xs focus:outline-none focus:border-purple-400 transition-colors resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Prompt Onizleme */}
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                  <p className="text-orange-300/60 text-xs font-semibold mb-1">AI Prompt Onizleme</p>
+                  <p className="text-orange-300/80 text-xs leading-relaxed">
+                    &quot;{productName || '...'} amigurumi, {size}cm, {POSE_OPTIONS.find((p) => p.id === pose)?.label.toLowerCase()} poz,{' '}
+                    {STYLE_OPTIONS.find((s) => s.id === style)?.label.toLowerCase()} fotograf,{' '}
+                    {ANGLE_OPTIONS.find((a) => a.id === angle)?.label.toLowerCase()} aci
+                    {extraNotes ? `. ${extraNotes}` : ''}&quot;
+                  </p>
                 </div>
               </div>
             </div>
+
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-300 text-sm">{error}</div>
             )}
@@ -196,7 +412,7 @@ export default function GeneratePage() {
             <div>
               <h2 className="text-lg font-semibold text-white mb-1">Ev Ortami Konseptleri</h2>
               <p className="text-white/50 text-sm">
-                Gemini sectiginiz konseptlerde arka plan degistirecek.
+                AI sectiginiz konseptlerde arka plan degistirecek. Birden fazla secebilirsiniz.
               </p>
             </div>
             <BackgroundSelector
@@ -233,7 +449,7 @@ export default function GeneratePage() {
               <div className="absolute inset-0 flex items-center justify-center text-3xl">🤖</div>
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-xl font-bold text-white">Gemini Calisiyor...</h2>
+              <h2 className="text-xl font-bold text-white">AI Calisiyor...</h2>
               <p className="text-white/50 text-sm">
                 {selectedBackgrounds.length} ev ortami konsepti icin gorseller uretiliyor.
               </p>
@@ -260,7 +476,7 @@ export default function GeneratePage() {
                   <span className={imageCount > 0 ? 'text-green-400' : 'text-orange-400 animate-pulse'}>
                     {imageCount > 0 ? '✓' : '◉'}
                   </span>
-                  <span>Gemini arka plan degisimi {imageCount > 0 ? `(${imageCount} hazir)` : '...'}</span>
+                  <span>OpenAI arka plan degisimi {imageCount > 0 ? `(${imageCount} hazir)` : '...'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-white/40">
                   <span className={imageCount > 0 ? 'text-green-400' : 'text-white/20'}>
@@ -304,6 +520,7 @@ export default function GeneratePage() {
                   setImageCount(0);
                   setPollCount(0);
                   setError('');
+                  setExtraNotes('');
                 }}
                 className="bg-white/10 hover:bg-white/15 text-white font-medium px-6 py-3 rounded-xl transition-all"
               >
