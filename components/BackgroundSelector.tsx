@@ -79,7 +79,7 @@ export default function BackgroundSelector({
     }
   };
 
-  const updateVariant = (bgId: string, key: keyof ConceptVariant, value: string) => {
+  const updateVariant = (bgId: string, key: keyof ConceptVariant, value: string | number) => {
     onChange(
       selected.map((s) =>
         s.backgroundId === bgId ? { ...s, variant: { ...s.variant, [key]: value } } : s
@@ -145,8 +145,8 @@ export default function BackgroundSelector({
       {/* Stats & Actions */}
       <div className="flex items-center justify-between">
         <span className="text-white/60 text-sm">
-          <span className="text-purple-400 font-semibold">{selected.length}</span>
-          /{maxSelections} konsept secili
+          <span className="text-purple-400 font-semibold">{selected.length}</span> konsept,{' '}
+          <span className="text-orange-400 font-semibold">{selected.reduce((sum, s) => sum + (s.variant.count || 1), 0)}</span> gorsel
         </span>
         <div className="flex gap-2">
           <button
@@ -220,10 +220,17 @@ export default function BackgroundSelector({
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xl">{preset.emoji}</span>
                   {isSelected && (
-                    <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
+                    <div className="flex items-center gap-1">
+                      {(getVariant(preset.id).count || 1) > 1 && (
+                        <span className="text-[9px] bg-orange-500/30 text-orange-300 font-bold px-1.5 py-0.5 rounded-full">
+                          x{getVariant(preset.id).count}
+                        </span>
+                      )}
+                      <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -248,6 +255,25 @@ export default function BackgroundSelector({
               {/* Variant Panel */}
               {isExpanded && (
                 <div className="mt-3 bg-white/[0.04] border border-purple-500/20 rounded-xl p-3 space-y-2.5">
+                  {/* Adet */}
+                  <div>
+                    <span className="text-[10px] text-white/40 block mb-1">Adet</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          onClick={(e) => { e.stopPropagation(); updateVariant(preset.id, 'count', n as unknown as string); }}
+                          className={`text-[10px] w-7 h-7 rounded-md flex items-center justify-center font-bold transition-all ${
+                            getVariant(preset.id).count === n
+                              ? 'bg-orange-500/25 border border-orange-500/40 text-orange-300'
+                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <VariantPicker
                     label="Sahne Detayi"
                     options={SCENE_DETAIL_OPTIONS}

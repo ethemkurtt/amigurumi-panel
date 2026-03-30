@@ -229,7 +229,8 @@ export default function GeneratePage() {
             )}
             <div className="flex items-center justify-between pt-4 border-t border-white/10">
               <div className="text-sm text-white/50">
-                <span className="text-purple-400 font-semibold">{selectedConcepts.length}</span> konsept secildi
+                <span className="text-purple-400 font-semibold">{selectedConcepts.length}</span> konsept,{' '}
+                <span className="text-orange-400 font-semibold">{selectedConcepts.reduce((sum, s) => sum + (s.variant.count || 1), 0)}</span> gorsel
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setStep('upload')} className="px-4 py-2 text-sm text-white/50 hover:text-white">← Geri</button>
@@ -238,7 +239,7 @@ export default function GeneratePage() {
                   disabled={selectedConcepts.length === 0}
                   className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-orange-500 hover:from-purple-400 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-xl transition-all"
                 >
-                  {selectedConcepts.length} Gorsel Uret
+                  {selectedConcepts.reduce((sum, s) => sum + (s.variant.count || 1), 0)} Gorsel Uret
                 </button>
               </div>
             </div>
