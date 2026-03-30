@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 
 export const maxDuration = 60;
 
@@ -20,9 +21,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'OPENAI_API_KEY not configured' }, { status: 500 });
   }
 
-  // Convert base64 to buffer then to File for multipart upload
-  const buffer = Buffer.from(imageBase64, 'base64');
-  const imageBlob = new Blob([buffer], { type: 'image/png' });
+  // Convert base64 to buffer, ensure RGBA PNG for DALL-E 2
+  const inputBuffer = Buffer.from(imageBase64, 'base64');
+  const rgbaBuffer = await sharp(inputBuffer)
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+  const imageBlob = new Blob([rgbaBuffer], { type: 'image/png' });
 
   const formData = new FormData();
   formData.append('image', imageBlob, 'image.png');
