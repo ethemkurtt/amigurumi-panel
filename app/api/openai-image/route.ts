@@ -30,10 +30,8 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       model: 'gpt-image-1',
       prompt: prompt,
-      image: {
-        type: 'base64',
-        media_type: 'image/png',
-        data: imageBase64,
+      input_image: {
+        image_base64: imageBase64,
       },
       size: '1024x1024',
       quality: 'medium',
