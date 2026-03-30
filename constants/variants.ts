@@ -44,7 +44,6 @@ export interface ConceptVariant {
   toySize: string;
   cameraAngle: string;
   toyPose: string;
-  count: number;
 }
 
 export const DEFAULT_VARIANT: ConceptVariant = {
@@ -53,7 +52,6 @@ export const DEFAULT_VARIANT: ConceptVariant = {
   toySize: 'medium',
   cameraAngle: 'front-45',
   toyPose: 'keep',
-  count: 1,
 };
 
 export function variantToPrompt(v: ConceptVariant): string {

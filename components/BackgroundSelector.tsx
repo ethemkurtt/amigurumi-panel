@@ -15,7 +15,7 @@ import {
 
 export interface SelectedConcept {
   backgroundId: string;
-  variant: ConceptVariant;
+  variants: ConceptVariant[];
 }
 
 interface BackgroundSelectorProps {
@@ -38,7 +38,7 @@ function VariantPicker({
   return (
     <div>
       <span className="text-[10px] text-white/40 block mb-1">{label}</span>
-      <div className="flex gap-1">
+      <div className="flex gap-1 flex-wrap">
         {options.map((opt) => (
           <button
             key={opt.id}
@@ -64,8 +64,11 @@ export default function BackgroundSelector({
 }: BackgroundSelectorProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeVariantTab, setActiveVariantTab] = useState<number>(0);
 
   const selectedIds = selected.map((s) => s.backgroundId);
+
+  const totalImages = selected.reduce((sum, s) => sum + s.variants.length, 0);
 
   const toggle = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -73,27 +76,56 @@ export default function BackgroundSelector({
       if (expandedId === id) setExpandedId(null);
     } else {
       if (selected.length >= maxSelections) return;
-      const newConcept: SelectedConcept = { backgroundId: id, variant: { ...DEFAULT_VARIANT } };
+      const newConcept: SelectedConcept = { backgroundId: id, variants: [{ ...DEFAULT_VARIANT }] };
       onChange([...selected, newConcept]);
       setExpandedId(id);
+      setActiveVariantTab(0);
     }
   };
 
-  const updateVariant = (bgId: string, key: keyof ConceptVariant, value: string | number) => {
+  const addVariant = (bgId: string) => {
     onChange(
-      selected.map((s) =>
-        s.backgroundId === bgId ? { ...s, variant: { ...s.variant, [key]: value } } : s
-      )
+      selected.map((s) => {
+        if (s.backgroundId !== bgId || s.variants.length >= 5) return s;
+        const lastVariant = s.variants[s.variants.length - 1];
+        return { ...s, variants: [...s.variants, { ...lastVariant }] };
+      })
+    );
+    const concept = selected.find((s) => s.backgroundId === bgId);
+    if (concept) setActiveVariantTab(concept.variants.length); // new tab index
+  };
+
+  const removeVariant = (bgId: string, index: number) => {
+    onChange(
+      selected.map((s) => {
+        if (s.backgroundId !== bgId || s.variants.length <= 1) return s;
+        return { ...s, variants: s.variants.filter((_, i) => i !== index) };
+      })
+    );
+    setActiveVariantTab((prev) => Math.max(0, prev - 1));
+  };
+
+  const updateVariant = (bgId: string, variantIndex: number, key: keyof ConceptVariant, value: string) => {
+    onChange(
+      selected.map((s) => {
+        if (s.backgroundId !== bgId) return s;
+        return {
+          ...s,
+          variants: s.variants.map((v, i) =>
+            i === variantIndex ? { ...v, [key]: value } : v
+          ),
+        };
+      })
     );
   };
 
-  const getVariant = (bgId: string): ConceptVariant => {
-    return selected.find((s) => s.backgroundId === bgId)?.variant || DEFAULT_VARIANT;
+  const getVariants = (bgId: string): ConceptVariant[] => {
+    return selected.find((s) => s.backgroundId === bgId)?.variants || [{ ...DEFAULT_VARIANT }];
   };
 
   const selectAll = () => {
     const presets = filteredPresets.slice(0, maxSelections);
-    onChange(presets.map((p) => ({ backgroundId: p.id, variant: { ...DEFAULT_VARIANT } })));
+    onChange(presets.map((p) => ({ backgroundId: p.id, variants: [{ ...DEFAULT_VARIANT }] })));
   };
 
   const clearAll = () => {
@@ -102,7 +134,12 @@ export default function BackgroundSelector({
   };
 
   const applyToAll = (key: keyof ConceptVariant, value: string) => {
-    onChange(selected.map((s) => ({ ...s, variant: { ...s.variant, [key]: value } })));
+    onChange(
+      selected.map((s) => ({
+        ...s,
+        variants: s.variants.map((v) => ({ ...v, [key]: value })),
+      }))
+    );
   };
 
   const filteredPresets =
@@ -146,7 +183,7 @@ export default function BackgroundSelector({
       <div className="flex items-center justify-between">
         <span className="text-white/60 text-sm">
           <span className="text-purple-400 font-semibold">{selected.length}</span> konsept,{' '}
-          <span className="text-orange-400 font-semibold">{selected.reduce((sum, s) => sum + (s.variant.count || 1), 0)}</span> gorsel
+          <span className="text-orange-400 font-semibold">{totalImages}</span> gorsel
         </span>
         <div className="flex gap-2">
           <button
@@ -203,6 +240,8 @@ export default function BackgroundSelector({
           const isSelected = selectedIds.includes(preset.id);
           const isDisabled = !isSelected && selected.length >= maxSelections;
           const isExpanded = expandedId === preset.id && isSelected;
+          const variants = getVariants(preset.id);
+          const variantCount = variants.length;
 
           return (
             <div key={preset.id} className="relative">
@@ -221,9 +260,9 @@ export default function BackgroundSelector({
                   <span className="text-xl">{preset.emoji}</span>
                   {isSelected && (
                     <div className="flex items-center gap-1">
-                      {(getVariant(preset.id).count || 1) > 1 && (
+                      {variantCount > 1 && (
                         <span className="text-[9px] bg-orange-500/30 text-orange-300 font-bold px-1.5 py-0.5 rounded-full">
-                          x{getVariant(preset.id).count}
+                          x{variantCount}
                         </span>
                       )}
                       <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
@@ -244,7 +283,12 @@ export default function BackgroundSelector({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setExpandedId(isExpanded ? null : preset.id);
+                    if (isExpanded) {
+                      setExpandedId(null);
+                    } else {
+                      setExpandedId(preset.id);
+                      setActiveVariantTab(0);
+                    }
                   }}
                   className="absolute -bottom-1 left-1/2 -translate-x-1/2 translate-y-1/2 z-10 bg-purple-500/80 hover:bg-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full transition-all"
                 >
@@ -254,56 +298,75 @@ export default function BackgroundSelector({
 
               {/* Variant Panel */}
               {isExpanded && (
-                <div className="mt-3 bg-white/[0.04] border border-purple-500/20 rounded-xl p-3 space-y-2.5">
-                  {/* Adet */}
-                  <div>
-                    <span className="text-[10px] text-white/40 block mb-1">Adet</span>
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          onClick={(e) => { e.stopPropagation(); updateVariant(preset.id, 'count', n as unknown as string); }}
-                          className={`text-[10px] w-7 h-7 rounded-md flex items-center justify-center font-bold transition-all ${
-                            getVariant(preset.id).count === n
-                              ? 'bg-orange-500/25 border border-orange-500/40 text-orange-300'
-                              : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
-                          }`}
-                        >
-                          {n}
-                        </button>
-                      ))}
-                    </div>
+                <div className="mt-3 bg-white/[0.04] border border-purple-500/20 rounded-xl p-3 space-y-3">
+                  {/* Variant Tabs */}
+                  <div className="flex items-center gap-1.5">
+                    {variants.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={(e) => { e.stopPropagation(); setActiveVariantTab(idx); }}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg font-bold transition-all relative ${
+                          activeVariantTab === idx
+                            ? 'bg-orange-500/25 border border-orange-500/40 text-orange-300'
+                            : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
+                        }`}
+                      >
+                        Gorsel {idx + 1}
+                        {variants.length > 1 && activeVariantTab === idx && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeVariant(preset.id, idx); }}
+                            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-red-500/80 hover:bg-red-500 rounded-full flex items-center justify-center text-[8px] text-white"
+                          >
+                            x
+                          </button>
+                        )}
+                      </button>
+                    ))}
+                    {variants.length < 5 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); addVariant(preset.id); }}
+                        className="text-[10px] px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/25 font-bold transition-all"
+                      >
+                        + Ekle
+                      </button>
+                    )}
                   </div>
-                  <VariantPicker
-                    label="Sahne Detayi"
-                    options={SCENE_DETAIL_OPTIONS}
-                    value={getVariant(preset.id).sceneDetail}
-                    onSelect={(v) => updateVariant(preset.id, 'sceneDetail', v)}
-                  />
-                  <VariantPicker
-                    label="Kamera Mesafesi"
-                    options={CAMERA_DISTANCE_OPTIONS}
-                    value={getVariant(preset.id).cameraDistance}
-                    onSelect={(v) => updateVariant(preset.id, 'cameraDistance', v)}
-                  />
-                  <VariantPicker
-                    label="Oyuncak Boyutu"
-                    options={TOY_SIZE_OPTIONS}
-                    value={getVariant(preset.id).toySize}
-                    onSelect={(v) => updateVariant(preset.id, 'toySize', v)}
-                  />
-                  <VariantPicker
-                    label="Kamera Acisi"
-                    options={CAMERA_ANGLE_OPTIONS}
-                    value={getVariant(preset.id).cameraAngle}
-                    onSelect={(v) => updateVariant(preset.id, 'cameraAngle', v)}
-                  />
-                  <VariantPicker
-                    label="Oyuncak Pozu"
-                    options={TOY_POSE_OPTIONS}
-                    value={getVariant(preset.id).toyPose}
-                    onSelect={(v) => updateVariant(preset.id, 'toyPose', v)}
-                  />
+
+                  {/* Active Variant Settings */}
+                  {variants[activeVariantTab] && (
+                    <div className="space-y-2.5">
+                      <VariantPicker
+                        label="Sahne Detayi"
+                        options={SCENE_DETAIL_OPTIONS}
+                        value={variants[activeVariantTab].sceneDetail}
+                        onSelect={(v) => updateVariant(preset.id, activeVariantTab, 'sceneDetail', v)}
+                      />
+                      <VariantPicker
+                        label="Kamera Mesafesi"
+                        options={CAMERA_DISTANCE_OPTIONS}
+                        value={variants[activeVariantTab].cameraDistance}
+                        onSelect={(v) => updateVariant(preset.id, activeVariantTab, 'cameraDistance', v)}
+                      />
+                      <VariantPicker
+                        label="Oyuncak Boyutu"
+                        options={TOY_SIZE_OPTIONS}
+                        value={variants[activeVariantTab].toySize}
+                        onSelect={(v) => updateVariant(preset.id, activeVariantTab, 'toySize', v)}
+                      />
+                      <VariantPicker
+                        label="Kamera Acisi"
+                        options={CAMERA_ANGLE_OPTIONS}
+                        value={variants[activeVariantTab].cameraAngle}
+                        onSelect={(v) => updateVariant(preset.id, activeVariantTab, 'cameraAngle', v)}
+                      />
+                      <VariantPicker
+                        label="Oyuncak Pozu"
+                        options={TOY_POSE_OPTIONS}
+                        value={variants[activeVariantTab].toyPose}
+                        onSelect={(v) => updateVariant(preset.id, activeVariantTab, 'toyPose', v)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
