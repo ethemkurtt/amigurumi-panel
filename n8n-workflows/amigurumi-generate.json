@@ -16,92 +16,104 @@
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "={{ $json.body.referenceImageUrl }}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          }
-        }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [400, 300],
-      "id": "n2",
-      "name": "Download Image"
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/upload/v1beta/files?key=AIzaSyCx4VlMwGz3UXwmStgTOxRccg_olJtXVYk",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "X-Goog-Upload-Protocol", "value": "raw" }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "data",
-        "options": { "timeout": 60000 }
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [600, 300],
-      "id": "n3",
-      "name": "Upload to Gemini"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCx4VlMwGz3UXwmStgTOxRccg_olJtXVYk",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBBij-vbzszsBocAtPSzoeu5291MYlAtb8",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ file_data: { mime_type: 'image/png', file_uri: $('Upload to Gemini').first().json.file.uri } }, { text: 'You are an expert Etsy seller for amigurumi toys. Product name: ' + $('Webhook').first().json.body.productName + '. Analyze image, generate Etsy listing. Return JSON with keys: title (max 140 chars), description (3 paragraphs), tags (array of 13 tags).' }] }], generationConfig: { responseMimeType: 'application/json' } }) }}",
+        "jsonBody": "={{ { contents: [{ parts: [{ text: 'You are an expert Etsy seller specializing in handmade amigurumi crochet toys. Product name: ' + $json.body.productName + '. Generate a compelling Etsy listing. Return valid JSON with: title (max 140 chars SEO optimized), description (3 paragraphs), tags (array of 13 Etsy search tags).' }] }], generationConfig: { responseMimeType: 'application/json' } } }}",
         "options": { "timeout": 60000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [820, 300],
-      "id": "n4",
+      "position": [420, 300],
+      "id": "n2",
       "name": "Gemini Content"
     },
     {
       "parameters": {
-        "jsCode": "const contentResponse = $input.first().json;\nconst webhookData = $('Webhook').first().json.body;\n\nlet title = webhookData.productName || 'Amigurumi';\nlet description = '';\nlet tags = [];\n\ntry {\n  const txt = contentResponse.candidates?.[0]?.content?.parts?.[0]?.text;\n  if (txt) {\n    const parsed = JSON.parse(txt);\n    title = parsed.title || title;\n    description = parsed.description || '';\n    tags = parsed.tags || [];\n  }\n} catch(e) {}\n\nconst PRESETS = {\n  'simple-table': { label: 'Sade Ev - Masa Ustu', prompt: 'Place the amigurumi toy on a clean wooden dining table in a simple bright minimalist home. Soft natural window light, clean white walls.' },\n  'kids-room-carpet': { label: 'Cocuk Odasi - Hali Ustu', prompt: 'Place the amigurumi toy on a soft colorful carpet in a bright childrens room. Pastel walls, toys in soft bokeh background.' },\n  'living-room-sofa': { label: 'Oturma Odasi - Kanepe', prompt: 'Place the amigurumi toy on a cozy beige sofa in a modern living room. Soft cushions, warm ambient lighting.' },\n  'bedroom-bed': { label: 'Yatak Odasi - Yatak Ustu', prompt: 'Place the amigurumi toy on a neatly made bed with white soft bedding. Cozy bedroom, soft morning light.' },\n  'window-sill': { label: 'Pencere Kenari', prompt: 'Place the amigurumi toy on a bright window sill with natural daylight. Soft blurred outdoor greenery visible.' },\n  'bookshelf': { label: 'Kitaplik Onu', prompt: 'Place the amigurumi toy in front of a cozy bookshelf with colorful books. Warm lighting, hygge atmosphere.' },\n  'kitchen-counter': { label: 'Mutfak Tezgahi', prompt: 'Place the amigurumi toy on a clean white marble kitchen counter. Bright modern kitchen, warm natural light.' },\n  'baby-room-crib': { label: 'Bebek Odasi', prompt: 'Place the amigurumi toy next to a white baby crib in a pastel nursery room. Gentle lighting, dreamy atmosphere.' },\n  'fireplace': { label: 'Somine Onu', prompt: 'Place the amigurumi toy on a cozy rug in front of a warm fireplace. Golden glow, knit blanket nearby.' },\n  'balcony-table': { label: 'Balkon - Sehpa', prompt: 'Place the amigurumi toy on a small coffee table on a cozy balcony. Green plants, soft outdoor light.' }\n};\n\nconst items = [];\nfor (const bgId of (webhookData.backgroundIds || [])) {\n  const preset = PRESETS[bgId];\n  if (!preset) continue;\n  items.push({\n    json: {\n      geminiPrompt: 'Edit this image: Remove the current background completely and replace it with: ' + preset.prompt + ' Keep the amigurumi toy EXACTLY as it is. Professional product photography.',\n      backgroundId: bgId,\n      backgroundLabel: preset.label,\n      title, description, tags,\n      productId: webhookData.productId,\n      callbackUrl: webhookData.callbackUrl,\n      secret: webhookData.secret\n    }\n  });\n}\n\nif (items.length === 0) throw new Error('No valid backgrounds');\nreturn items;"
+        "method": "POST",
+        "url": "={{ $('Webhook').first().json.body.callbackUrl.replace('/api/webhook/n8n', '/api/image-to-base64') }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { imageUrl: $('Webhook').first().json.body.referenceImageUrl, secret: $('Webhook').first().json.body.secret } }}",
+        "options": { "timeout": 30000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300],
+      "id": "n3",
+      "name": "Get Base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst SA_EMAIL = 'id-n8n-vertex@n8n-vertex-491819.iam.gserviceaccount.com';\nconst SA_KEY = '-----BEGIN PRIVATE KEY-----\\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDMjOmRY0Pjdjlt\\n//QhDpdmBu1DMY75mRWDTEagR+jxKlAabJJBqPGJdVmzA/b8E7UjGv2Gka6ab+X/\\nNJteFv2LA9uwBxE5lwrCwCcO76FdTYajY65dNF7i4R3SIB1h08Uol1HVoTAWrAu0\\nKwUKMLnFCAZ+9Mr0jgA3RpbHs22hY6jg5aliuWW4/WfpXhcPSt5GBYflWfpojI38\\nERGAvr98mHanSmuNS97O9OAIXyu0bCPRyDQj8SZ3zD7BZTXqCwpbozY5ow8MvCMg\\n53HMkZ9dTyeCejQqLwAgDGmOoECjJQ0PFAGtu0rnt40PdcDNXzcNmL8o869wIxgD\\n+ajaTAs3AgMBAAECggEAOMoKcp3flEAXc62zBpZ5fA8CQjx5GFzi9x/vH8K3LnVz\\n5dIszOPtox8cdzHrmVKTYJq2tmyt0Byu+yqM1BOH8tdwX6+mnZmMmEMm1OO8ph3G\\n+ofLOf83NMAROmxGHAniXAGe67OjmTfMzAmBjbG3cbdnrkmiK0FdV/tWEz2Ce2Kj\\nHk8nIP1XHofPsmOIVzRLMVCx0HPhYWFBZOPoRkdvVn0+dkEmhkDKP2aYM4GK9p+k\\ns2R38tLCCcGL6S+ggm2satbfPOW+QwUbH4ZgW7tXFEsUrzX5LMe5Cr6Ol5lJ93Bs\\nqM2INnoOKRiBfvN6qfZGJLBONvEvCG5T/fYPuydduQKBgQD9gCxtSatBArOAjEcJ\\nHy3Emzb9BWwbzezJi3Efsice00btradQKL//JqzGZVEyp0kqa+NdoTae3Vv31qye\\ndtPjcsvNWmy20Fa65nJQOMOEc2uXBncjf+TN7muzPs4tBE0IO9Ds80nxee4GQ3F6\\n5lk2WgkNfEI3a/OlQY7YXYva6wKBgQDOkTCx/Jl5oAf/ZFxk69A+1MAefjRjxV+O\\nU1AqnkRBXiKnuYbJoKJSb6OLnW4lvBJsbqSXJnaIRXoWnnggyNsRPB3T8kNXyf1J\\n4o51XIsNFpKFzSSsI9OBeHmQs3bwR+3eLBwxG2FCMo7cecA8pwG5Wp6qaTys/pvO\\n1AD1Itfl5QKBgQDbMOe5O7jLRqWlIiYN+hqd5EPAtd6LkBwNDPgsmuN+oNq0irGf\\n+wxAd9Vu2o5CCSmXd6AqBkpvRSHPg5zQjBick1crYeOckzpa8wWm3d4Y+Z/u/1Um\\nqeBSO7R+UXD+tbhRxT7ak2a9WFt6qPhHd0NuXp1zPp0WxM3wd2YnKYPTLwKBgQCy\\nC6MVRsxicPVzxGV+92K/RVFy9wThGjaKznTCxze9wA3O07LCB5rhwygMJt3R2JFo\\ntNVZEuYH/xqEdILGf1mTOWXcUWyKNqgDDywLLIEN/u68NV3uodKkPdtKReW2pcj5\\nPrvt99OU408P6kEwBiMOSHWKHLsXwT06wLEymZ3NoQKBgQDZD+0g0dHndyqLqZ66\\nPH+TVQ+GUw9+kEnxg+qkNzzTjTKc+lJwKV9+8b+FpC7BuVxZAeMOiQYX01hHXu2P\\nQpnVbSg2e0gH5th0ryTSmjd4Bol9KzSUSInPA/k9JZKhoSXCLo7s9wmBT69LBufn\\nGYD7Ciyfq0zwxt9uIvh+iGlbNg==\\n-----END PRIVATE KEY-----\\n';\n\nconst now = Math.floor(Date.now() / 1000);\nconst header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');\nconst claimSet = Buffer.from(JSON.stringify({\n  iss: SA_EMAIL,\n  scope: 'https://www.googleapis.com/auth/cloud-platform',\n  aud: 'https://oauth2.googleapis.com/token',\n  iat: now,\n  exp: now + 3600\n})).toString('base64url');\n\nconst signInput = header + '.' + claimSet;\nconst sign = crypto.createSign('RSA-SHA256');\nsign.update(signInput);\nconst signature = sign.sign(SA_KEY, 'base64url');\n\nreturn [{ json: { jwt: signInput + '.' + signature } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1040, 300],
+      "position": [860, 300],
+      "id": "n4",
+      "name": "Get Auth Token"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://oauth2.googleapis.com/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "grant_type", "value": "urn:ietf:params:oauth:grant-type:jwt-bearer" },
+            { "name": "assertion", "value": "={{ $json.jwt }}" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 300],
       "id": "n5",
+      "name": "Exchange Token"
+    },
+    {
+      "parameters": {
+        "jsCode": "const contentResponse = $('Gemini Content').first().json;\nconst webhookData = $('Webhook').first().json.body;\nconst base64Data = $('Get Base64').first().json;\nconst accessToken = $('Exchange Token').first().json.access_token;\n\nlet title = webhookData.productName || 'Amigurumi';\nlet description = '';\nlet tags = [];\n\ntry {\n  const txt = contentResponse.candidates?.[0]?.content?.parts?.[0]?.text;\n  if (txt) {\n    const parsed = JSON.parse(txt);\n    title = parsed.title || title;\n    description = parsed.description || '';\n    tags = parsed.tags || [];\n  }\n} catch(e) {}\n\nconst PRESETS = {\n  'simple-table': { label: 'Sade Ev - Masa Ustu', prompt: 'Place the amigurumi toy on a clean wooden dining table in a simple bright minimalist home. Soft natural window light, clean white walls.' },\n  'kids-room-carpet': { label: 'Cocuk Odasi - Hali Ustu', prompt: 'Place the amigurumi toy on a soft colorful carpet in a bright childrens room. Pastel walls, toys in soft bokeh background.' },\n  'living-room-sofa': { label: 'Oturma Odasi - Kanepe', prompt: 'Place the amigurumi toy on a cozy beige sofa in a modern living room. Soft cushions, warm ambient lighting.' },\n  'bedroom-bed': { label: 'Yatak Odasi - Yatak Ustu', prompt: 'Place the amigurumi toy on a neatly made bed with white soft bedding. Cozy bedroom, soft morning light.' },\n  'window-sill': { label: 'Pencere Kenari', prompt: 'Place the amigurumi toy on a bright window sill with natural daylight. Soft blurred outdoor greenery visible.' },\n  'bookshelf': { label: 'Kitaplik Onu', prompt: 'Place the amigurumi toy in front of a cozy bookshelf with colorful books. Warm lighting, hygge atmosphere.' },\n  'kitchen-counter': { label: 'Mutfak Tezgahi', prompt: 'Place the amigurumi toy on a clean white marble kitchen counter. Bright modern kitchen, warm natural light.' },\n  'baby-room-crib': { label: 'Bebek Odasi', prompt: 'Place the amigurumi toy next to a white baby crib in a pastel nursery room. Gentle lighting, dreamy atmosphere.' },\n  'fireplace': { label: 'Somine Onu', prompt: 'Place the amigurumi toy on a cozy rug in front of a warm fireplace. Golden glow, knit blanket nearby.' },\n  'balcony-table': { label: 'Balkon - Sehpa', prompt: 'Place the amigurumi toy on a small coffee table on a cozy balcony. Green plants, soft outdoor light.' }\n};\n\nconst items = [];\nfor (const bgId of (webhookData.backgroundIds || [])) {\n  const preset = PRESETS[bgId];\n  if (!preset) continue;\n  items.push({\n    json: {\n      accessToken,\n      imageBase64: base64Data.base64,\n      imageMimeType: base64Data.mimeType,\n      geminiPrompt: 'Edit this image: Remove the current background completely and replace it with: ' + preset.prompt + ' Keep the amigurumi toy EXACTLY as it is. Professional product photography.',\n      backgroundId: bgId,\n      backgroundLabel: preset.label,\n      title, description, tags,\n      productId: webhookData.productId,\n      callbackUrl: webhookData.callbackUrl,\n      secret: webhookData.secret\n    }\n  });\n}\n\nif (items.length === 0) throw new Error('No valid backgrounds');\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "id": "n6",
       "name": "Fan Out"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=AIzaSyCx4VlMwGz3UXwmStgTOxRccg_olJtXVYk",
+        "url": "https://us-central1-aiplatform.googleapis.com/v1/projects/n8n-vertex-491819/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $json.accessToken }}" }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ file_data: { mime_type: 'image/png', file_uri: $('Upload to Gemini').first().json.file.uri } }, { text: $json.geminiPrompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }) }}",
+        "jsonBody": "={{ { contents: [{ parts: [{ inlineData: { mimeType: $json.imageMimeType, data: $json.imageBase64 } }, { text: $json.geminiPrompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } } }}",
         "options": { "timeout": 120000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1260, 300],
-      "id": "n6",
+      "position": [1520, 300],
+      "id": "n7",
       "name": "Gemini Image",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\n\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  let imageBase64 = null;\n  const parts = response.candidates?.[0]?.content?.parts || [];\n  for (const part of parts) {\n    if (part.inlineData?.data) { imageBase64 = part.inlineData.data; break; }\n  }\n  if (!imageBase64) continue;\n\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n\n  results.push({\n    json: {\n      imageBase64,\n      cloudTs: ts,\n      cloudSig: sig,\n      backgroundId: bgInfo.backgroundId,\n      backgroundLabel: bgInfo.backgroundLabel,\n      title: bgInfo.title,\n      description: bgInfo.description,\n      tags: bgInfo.tags,\n      productId: bgInfo.productId,\n      callbackUrl: bgInfo.callbackUrl,\n      secret: bgInfo.secret\n    }\n  });\n}\n\nif (results.length === 0) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
+        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\n\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  let imageBase64 = null;\n  const parts = response.candidates?.[0]?.content?.parts || [];\n  for (const part of parts) {\n    if (part.inlineData?.data) { imageBase64 = part.inlineData.data; break; }\n    if (part.inline_data?.data) { imageBase64 = part.inline_data.data; break; }\n  }\n  if (!imageBase64) continue;\n\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n\n  results.push({\n    json: {\n      imageBase64,\n      cloudTs: ts,\n      cloudSig: sig,\n      backgroundId: bgInfo.backgroundId,\n      backgroundLabel: bgInfo.backgroundLabel,\n      title: bgInfo.title,\n      description: bgInfo.description,\n      tags: bgInfo.tags,\n      productId: bgInfo.productId,\n      callbackUrl: bgInfo.callbackUrl,\n      secret: bgInfo.secret\n    }\n  });\n}\n\nif (results.length === 0) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1480, 300],
-      "id": "n7",
+      "position": [1740, 300],
+      "id": "n8",
       "name": "Prep Upload"
     },
     {
@@ -110,13 +122,13 @@
         "url": "=https://api.cloudinary.com/v1_1/dm2jbdqxc/image/upload",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ file: 'data:image/png;base64,' + $json.imageBase64, api_key: '723949127319764', timestamp: $json.cloudTs, signature: $json.cloudSig, folder: 'amigurumi/gemini' }) }}",
+        "jsonBody": "={{ { file: 'data:image/png;base64,' + $json.imageBase64, api_key: '723949127319764', timestamp: $json.cloudTs, signature: $json.cloudSig, folder: 'amigurumi/gemini' } }}",
         "options": { "timeout": 60000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1700, 300],
-      "id": "n8",
+      "position": [1960, 300],
+      "id": "n9",
       "name": "Cloudinary Upload",
       "onError": "continueRegularOutput"
     },
@@ -126,8 +138,8 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1920, 300],
-      "id": "n9",
+      "position": [2180, 300],
+      "id": "n10",
       "name": "Aggregate"
     },
     {
@@ -136,21 +148,22 @@
         "url": "={{ $json.callbackUrl }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.callbackBody) }}",
+        "jsonBody": "={{ $json.callbackBody }}",
         "options": { "timeout": 30000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2140, 300],
-      "id": "n10",
+      "position": [2400, 300],
+      "id": "n11",
       "name": "Send Callback"
     }
   ],
   "connections": {
-    "Webhook": { "main": [[{ "node": "Download Image", "type": "main", "index": 0 }]] },
-    "Download Image": { "main": [[{ "node": "Upload to Gemini", "type": "main", "index": 0 }]] },
-    "Upload to Gemini": { "main": [[{ "node": "Gemini Content", "type": "main", "index": 0 }]] },
-    "Gemini Content": { "main": [[{ "node": "Fan Out", "type": "main", "index": 0 }]] },
+    "Webhook": { "main": [[{ "node": "Gemini Content", "type": "main", "index": 0 }]] },
+    "Gemini Content": { "main": [[{ "node": "Get Base64", "type": "main", "index": 0 }]] },
+    "Get Base64": { "main": [[{ "node": "Get Auth Token", "type": "main", "index": 0 }]] },
+    "Get Auth Token": { "main": [[{ "node": "Exchange Token", "type": "main", "index": 0 }]] },
+    "Exchange Token": { "main": [[{ "node": "Fan Out", "type": "main", "index": 0 }]] },
     "Fan Out": { "main": [[{ "node": "Gemini Image", "type": "main", "index": 0 }]] },
     "Gemini Image": { "main": [[{ "node": "Prep Upload", "type": "main", "index": 0 }]] },
     "Prep Upload": { "main": [[{ "node": "Cloudinary Upload", "type": "main", "index": 0 }]] },
