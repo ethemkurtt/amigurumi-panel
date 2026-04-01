@@ -28,6 +28,9 @@ interface Product {
   hasProcessedPdf?: boolean;
   pdfPrompt?: string;
   pdfUrl?: string;
+  videoUrl?: string;
+  videoStatus?: 'idle' | 'generating' | 'completed' | 'failed';
+  videoError?: string;
   lastError?: string;
   createdAt: string;
 }
@@ -44,12 +47,17 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'images' | 'content' | 'pdf'>('images');
+  const [activeTab, setActiveTab] = useState<'images' | 'content' | 'pdf' | 'video'>('images');
 
   // PDF states
   const [pdfPrompt, setPdfPrompt] = useState('');
   const [pdfProcessing, setPdfProcessing] = useState(false);
   const [pdfError, setPdfError] = useState('');
+
+  // Video states
+  const [videoGenerating, setVideoGenerating] = useState(false);
+  const [videoError, setVideoError] = useState('');
+  const [videoOperationName, setVideoOperationName] = useState('');
 
   // ZIP download
   const [zipLoading, setZipLoading] = useState(false);
@@ -148,6 +156,61 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     }
   };
 
+  // Video uretim
+  const handleGenerateVideo = async () => {
+    if (!product) return;
+    setVideoGenerating(true);
+    setVideoError('');
+    try {
+      // 1. Video uretimini baslat
+      const res = await fetch('/api/gemini-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product._id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Video baslatilamadi');
+
+      const opName = data.operationName;
+      setVideoOperationName(opName);
+
+      // 2. Poll: her 10 saniyede kontrol et
+      const pollInterval = setInterval(async () => {
+        try {
+          const pollRes = await fetch(`/api/gemini-video?operation=${encodeURIComponent(opName)}&productId=${product._id}`);
+          const pollData = await pollRes.json();
+
+          if (pollData.done) {
+            clearInterval(pollInterval);
+            setVideoGenerating(false);
+            if (pollData.error) {
+              setVideoError(pollData.error);
+            } else {
+              await loadProduct();
+            }
+          }
+        } catch {
+          clearInterval(pollInterval);
+          setVideoGenerating(false);
+          setVideoError('Video durumu kontrol edilemedi');
+        }
+      }, 10000);
+
+      // 5 dakika sonra timeout
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (videoGenerating) {
+          setVideoGenerating(false);
+          setVideoError('Video uretimi zaman asimina ugradi. Sayfayi yenileyerek tekrar kontrol edin.');
+        }
+      }, 300000);
+
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : 'Video uretim basarisiz');
+      setVideoGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
@@ -212,9 +275,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         {/* Tabs */}
         <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit mb-8">
           {([
-            { key: 'images' as const, label: '🖼️ Gorseller', show: true },
-            { key: 'pdf' as const, label: '📄 PDF', show: hasPdf },
-            { key: 'content' as const, label: '📝 Icerik', show: true },
+            { key: 'images' as const, label: 'Gorseller', show: true },
+            { key: 'video' as const, label: 'Video', show: true },
+            { key: 'pdf' as const, label: 'PDF', show: hasPdf },
+            { key: 'content' as const, label: 'Icerik', show: true },
           ]).filter(t => t.show).map((tab) => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-all
@@ -295,6 +359,101 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB: Video ───────────────────────────────────────────────── */}
+        {activeTab === 'video' && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            {/* Video Player veya Uret Butonu */}
+            {product.videoUrl && product.videoStatus === 'completed' ? (
+              <div className="space-y-4">
+                <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
+                  <video
+                    src={product.videoUrl}
+                    controls
+                    autoPlay
+                    loop
+                    className="w-full rounded-2xl"
+                    style={{ maxHeight: 600 }}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <a
+                    href={product.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 text-green-300 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-500/30 transition-all"
+                  >
+                    Videoyu Indir
+                  </a>
+                  <button
+                    onClick={handleGenerateVideo}
+                    disabled={videoGenerating}
+                    className="flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-all disabled:opacity-50"
+                  >
+                    Yeniden Uret
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-12 text-center space-y-6">
+                {videoGenerating ? (
+                  <>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <div className="w-20 h-20 border-4 border-purple-500/20 border-t-purple-400 rounded-full animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center text-3xl">🎬</div>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Video Uretiliyor...</p>
+                        <p className="text-white/40 text-sm mt-1">Bu islem 1-5 dakika surebilir. Sayfa acik kalsn.</p>
+                      </div>
+                    </div>
+                    <div className="w-64 mx-auto bg-white/10 rounded-full h-2 overflow-hidden">
+                      <div className="bg-gradient-to-r from-purple-500 to-orange-500 h-full rounded-full animate-pulse" style={{ width: '60%' }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-6xl">🎥</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">360 Urun Videosu</h3>
+                      <p className="text-white/40 text-sm mt-2 max-w-md mx-auto">
+                        Referans gorselinizden profesyonel bir studio ortaminda 360 derece donen urun videosu olusturun.
+                        Beyaz arka plan, yumusak isik, doner stand.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleGenerateVideo}
+                      disabled={videoGenerating}
+                      className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-orange-500 hover:from-purple-400 hover:to-orange-400 text-white font-semibold px-8 py-3 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      Video Uret
+                    </button>
+                  </>
+                )}
+
+                {videoError && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-4">
+                    <p className="text-red-300 text-sm">{videoError}</p>
+                  </div>
+                )}
+
+                {product.videoStatus === 'failed' && product.videoError && !videoError && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-4">
+                    <p className="text-red-300 text-sm">Onceki deneme basarisiz: {product.videoError}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bilgi */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+              <p className="text-xs text-blue-300/60">
+                Video, Gemini Veo modeli ile uretilir. Referans gorseliniz kullanilarak beyaz studio ortaminda 360 derece donen 8 saniyelik profesyonel bir urun videosu olusturulur.
+              </p>
             </div>
           </div>
         )}

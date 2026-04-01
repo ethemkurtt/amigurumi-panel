@@ -24,6 +24,9 @@ export interface IProduct extends Document {
   processedPdfUrl?: string;
   processedPdfBase64?: string;
   pdfPrompt?: string;
+  videoUrl?: string;
+  videoStatus?: 'idle' | 'generating' | 'completed' | 'failed';
+  videoError?: string;
   pdfUrl?: string;
   lastError?: string;
   createdAt: Date;
@@ -57,6 +60,9 @@ const ProductSchema = new Schema<IProduct>(
       enum: ['draft', 'generating', 'completed'],
       default: 'draft',
     },
+    videoUrl: { type: String },
+    videoStatus: { type: String, enum: ['idle', 'generating', 'completed', 'failed'], default: 'idle' },
+    videoError: { type: String },
     pdfUrl: { type: String },
     lastError: { type: String },
   },
