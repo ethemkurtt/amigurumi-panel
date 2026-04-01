@@ -61,7 +61,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { contents: [{ parts: [{ inlineData: { mimeType: 'image/png', data: $json.imageBase64 } }, { text: $json.prompt }] }], generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } } }}",
-        "options": { "timeout": 120000 }
+        "options": {
+          "timeout": 120000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 5000
+            }
+          }
+        }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
