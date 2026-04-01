@@ -151,12 +151,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ done: true, error: 'Video URI bulunamadi' });
     }
 
-    // Video'yu Cloudinary'ye yukle (productId varsa)
+    // Video'yu Gemini'den API key ile indir, sonra Cloudinary'ye yukle
     let videoUrl = videoUri;
     if (productId) {
       try {
         await connectDB();
-        // Cloudinary video upload
+
+        // 1. Gemini'den video'yu API key ile indir
+        const authVideoUrl = videoUri.includes('?') ? `${videoUri}&key=${geminiKey}` : `${videoUri}?key=${geminiKey}`;
+        const videoDownload = await fetch(authVideoUrl);
+        if (!videoDownload.ok) {
+          throw new Error(`Video indirilemedi: ${videoDownload.status}`);
+        }
+        const videoBuffer = Buffer.from(await videoDownload.arrayBuffer());
+
+        // 2. Cloudinary'ye buffer olarak yukle
         const { v2: cloudinary } = await import('cloudinary');
         cloudinary.config({
           cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -164,9 +173,15 @@ export async function GET(req: NextRequest) {
           api_secret: process.env.CLOUDINARY_API_SECRET,
         });
 
-        const uploadResult = await cloudinary.uploader.upload(videoUri, {
-          resource_type: 'video',
-          folder: 'amigurumi/videos',
+        const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'video', folder: 'amigurumi/videos' },
+            (error, result) => {
+              if (error || !result) return reject(error);
+              resolve(result);
+            }
+          );
+          stream.end(videoBuffer);
         });
         videoUrl = uploadResult.secure_url;
 
@@ -177,12 +192,10 @@ export async function GET(req: NextRequest) {
         });
       } catch (uploadErr) {
         console.error('Video upload error:', uploadErr);
-        // Cloudinary basarisiz olsa bile video URI'yi kaydet
         await Product.findByIdAndUpdate(productId, {
-          videoUrl: videoUri,
-          videoStatus: 'completed',
+          videoStatus: 'failed',
+          videoError: uploadErr instanceof Error ? uploadErr.message : 'Video yukleme basarisiz',
         });
-        videoUrl = videoUri;
       }
     }
 
