@@ -11,6 +11,7 @@ export default function GeneratePage() {
   const [productName, setProductName] = useState('');
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
   const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfBase64State, setPdfBase64State] = useState('');
   const [pdfName, setPdfName] = useState('');
   const [pdfUploading, setPdfUploading] = useState(false);
   const [pdfPrompt, setPdfPrompt] = useState('');
@@ -48,6 +49,7 @@ export default function GeneratePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setPdfUrl(data.url);
+      setPdfBase64State(data.pdfBase64 || '');
       setPdfName(file.name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'PDF yuklenemedi');
@@ -65,7 +67,7 @@ export default function GeneratePage() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: productName, referenceImageUrl, originalPdfUrl: pdfUrl || undefined, pdfPrompt: pdfPrompt || undefined, size }),
+        body: JSON.stringify({ name: productName, referenceImageUrl, originalPdfUrl: pdfUrl || undefined, originalPdfBase64: pdfBase64State || undefined, pdfPrompt: pdfPrompt || undefined, size }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -97,7 +99,7 @@ export default function GeneratePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // PDF varsa Claude ile paralel duzenle
+      // PDF varsa Claude ile paralel duzenle (base64 MongoDB'de kayitli)
       if (pdfUrl && pdfPrompt) {
         fetch('/api/claude-pdf', {
           method: 'POST',

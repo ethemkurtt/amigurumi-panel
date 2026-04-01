@@ -123,6 +123,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     setPdfProcessing(true);
     setPdfError('');
     try {
+      // base64 MongoDB'de kayitli, claude-pdf route otomatik cekecek
       const res = await fetch('/api/claude-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,7 +131,6 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'PDF isleme basarisiz');
-      // Reload product to get new processedPdfUrl
       await loadProduct();
     } catch (err) {
       setPdfError(err instanceof Error ? err.message : 'PDF isleme basarisiz');

@@ -20,7 +20,9 @@ export interface IProduct extends Document {
   tags: string[];
   status: 'draft' | 'generating' | 'completed';
   originalPdfUrl?: string;
+  originalPdfBase64?: string;
   processedPdfUrl?: string;
+  processedPdfBase64?: string;
   pdfPrompt?: string;
   pdfUrl?: string;
   lastError?: string;
@@ -42,7 +44,9 @@ const ProductSchema = new Schema<IProduct>(
     size: { type: String, default: '25' },
     referenceImageUrl: { type: String, required: true },
     originalPdfUrl: { type: String },
+    originalPdfBase64: { type: String },
     processedPdfUrl: { type: String },
+    processedPdfBase64: { type: String },
     pdfPrompt: { type: String },
     generatedImages: { type: [GeneratedImageSchema], default: [] },
     title: { type: String, default: '' },

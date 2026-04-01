@@ -17,11 +17,12 @@ export async function POST(req: NextRequest) {
     let url: string;
     if (isPdf) {
       url = await uploadPdfBuffer(buffer, 'amigurumi/pdfs');
+      const pdfBase64 = buffer.toString('base64');
+      return NextResponse.json({ url, type: 'pdf', pdfBase64 });
     } else {
       url = await uploadImageBuffer(buffer, 'amigurumi/references');
+      return NextResponse.json({ url, type: 'image' });
     }
-
-    return NextResponse.json({ url, type: isPdf ? 'pdf' : 'image' });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

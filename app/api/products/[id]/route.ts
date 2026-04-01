@@ -9,7 +9,7 @@ export async function GET(
   try {
     await connectDB();
     const { id } = await params;
-    const product = await Product.findById(id).lean();
+    const product = await Product.findById(id).select('-originalPdfBase64 -processedPdfBase64').lean();
     if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ product });
   } catch (error) {

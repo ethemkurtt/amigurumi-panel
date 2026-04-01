@@ -1,58 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { Product } from '@/models/Product';
-import { uploadPdfBuffer, cloudinary } from '@/lib/cloudinary';
+import { uploadPdfBuffer } from '@/lib/cloudinary';
 
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productId, prompt } = body;
+    const { productId, prompt, pdfBase64 } = body;
 
     if (!productId || !prompt) {
       return NextResponse.json({ error: 'productId and prompt required' }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
-    }
-
     await connectDB();
     const product = await Product.findById(productId);
-    if (!product || !product.originalPdfUrl) {
-      return NextResponse.json({ error: 'Product or PDF not found' }, { status: 404 });
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // 1. PDF'i indir (signed URL ile - Cloudinary raw ACL kısıtlaması için)
-    const rawUrl = product.originalPdfUrl;
-    // URL'den public_id çıkar: .../upload/v123/amigurumi/pdfs/file.pdf → amigurumi/pdfs/file
-    const uploadIdx = rawUrl.indexOf('/upload/');
-    const pathAfterUpload = rawUrl.substring(uploadIdx + 8); // skip "/upload/"
-    const withoutVersion = pathAfterUpload.replace(/^v\d+\//, ''); // remove version
-    const publicId = withoutVersion.replace(/\.pdf$/, ''); // remove extension
-
-    const signedUrl = cloudinary.url(publicId, {
-      resource_type: 'raw',
-      type: 'upload',
-      sign_url: true,
-      secure: true,
-    });
-    console.log('Downloading PDF, signed URL:', signedUrl);
-
-    const pdfResponse = await fetch(signedUrl, { redirect: 'follow' });
-    if (!pdfResponse.ok) {
-      console.error('PDF download failed:', pdfResponse.status, pdfResponse.statusText);
-      return NextResponse.json({ error: 'PDF indirilemedi', status: pdfResponse.status, statusText: pdfResponse.statusText }, { status: 500 });
+    // PDF base64: request'ten veya MongoDB'den
+    const pdfData = pdfBase64 || product.originalPdfBase64;
+    if (!pdfData) {
+      return NextResponse.json({ error: 'PDF verisi bulunamadi. Lutfen urunu PDF ile tekrar olusturun.' }, { status: 400 });
     }
-    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
-    const pdfBase64 = pdfBuffer.toString('base64');
 
-    // 2. Claude API'ye gonder (Anthropic Messages API)
+    // Claude API'ye gonder (Anthropic Messages API)
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
 
-    // Claude varsa Claude kullan, yoksa GPT kullan
+    let editedContent = '';
+
     if (anthropicKey) {
       // Claude ile PDF analiz et
       const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -70,7 +49,7 @@ export async function POST(req: NextRequest) {
             content: [
               {
                 type: 'document',
-                source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+                source: { type: 'base64', media_type: 'application/pdf', data: pdfData },
               },
               {
                 type: 'text',
@@ -97,36 +76,18 @@ Return ONLY the edited document content, nothing else.`,
 
       if (!claudeResponse.ok) {
         const err = await claudeResponse.json();
+        console.error('Claude API error:', err);
         return NextResponse.json({ error: 'Claude API error', details: err }, { status: 500 });
       }
 
       const claudeData = await claudeResponse.json();
-      const editedContent = claudeData.content?.[0]?.text || '';
-
-      // 3. Duzenenmis icerigi PDF'e cevir
-      const pdfBytes = await generatePdfFromText(editedContent, product.name);
-
-      // 4. Cloudinary'ye yukle
-      const processedUrl = await uploadPdfBuffer(Buffer.from(pdfBytes), 'amigurumi/pdfs-processed');
-
-      // 5. Product'i guncelle
-      await Product.findByIdAndUpdate(productId, {
-        processedPdfUrl: processedUrl,
-        pdfPrompt: prompt,
-      });
-
-      return NextResponse.json({
-        success: true,
-        processedPdfUrl: processedUrl,
-        editedContent: editedContent.substring(0, 500) + '...',
-      });
-    } else {
-      // GPT ile PDF analiz et (OpenAI'da PDF yoksa text olarak gonder)
-      // PDF'in text icerigini cikart (basit yontem)
+      editedContent = claudeData.content?.[0]?.text || '';
+    } else if (openaiKey) {
+      // GPT fallback
       const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${openaiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -137,7 +98,7 @@ Return ONLY the edited document content, nothing else.`,
             content: [
               {
                 type: 'file',
-                file: { file_data: `data:application/pdf;base64,${pdfBase64}` },
+                file: { file_data: `data:application/pdf;base64,${pdfData}` },
               },
               {
                 type: 'text',
@@ -164,22 +125,32 @@ Return ONLY the edited document content.`,
       }
 
       const gptData = await gptResponse.json();
-      const editedContent = gptData.choices?.[0]?.message?.content || '';
-
-      const pdfBytes = await generatePdfFromText(editedContent, product.name);
-      const processedUrl = await uploadPdfBuffer(Buffer.from(pdfBytes), 'amigurumi/pdfs-processed');
-
-      await Product.findByIdAndUpdate(productId, {
-        processedPdfUrl: processedUrl,
-        pdfPrompt: prompt,
-      });
-
-      return NextResponse.json({
-        success: true,
-        processedPdfUrl: processedUrl,
-        editedContent: editedContent.substring(0, 500) + '...',
-      });
+      editedContent = gptData.choices?.[0]?.message?.content || '';
+    } else {
+      return NextResponse.json({ error: 'No API key configured (ANTHROPIC or OPENAI)' }, { status: 500 });
     }
+
+    if (!editedContent) {
+      return NextResponse.json({ error: 'AI returned empty content' }, { status: 500 });
+    }
+
+    // Duzenlenmis icerigi PDF'e cevir
+    const pdfBytes = await generatePdfFromText(editedContent, product.name);
+
+    // Cloudinary'ye yukle
+    const processedUrl = await uploadPdfBuffer(Buffer.from(pdfBytes), 'amigurumi/pdfs-processed');
+
+    // Product'i guncelle
+    await Product.findByIdAndUpdate(productId, {
+      processedPdfUrl: processedUrl,
+      pdfPrompt: prompt,
+    });
+
+    return NextResponse.json({
+      success: true,
+      processedPdfUrl: processedUrl,
+      editedContent: editedContent.substring(0, 500) + '...',
+    });
   } catch (error) {
     console.error('Claude PDF error:', error);
     return NextResponse.json(
@@ -205,18 +176,15 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
   const CONTENT_W = PAGE_W - MARGIN_X * 2;
   const LINE_H = 16;
 
-  // Colors
   const purple = rgb(0.45, 0.27, 0.8);
   const darkGray = rgb(0.15, 0.15, 0.15);
   const medGray = rgb(0.35, 0.35, 0.35);
   const lightBg = rgb(0.95, 0.95, 0.98);
   const accentBg = rgb(0.93, 0.9, 1.0);
 
-  // Strip emojis for PDF (Helvetica doesn't support them)
   const stripEmoji = (s: string) =>
     s.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]|[\u{1F900}-\u{1F9FF}]|[\u{2702}-\u{27B0}]|[\u{24C2}-\u{1F251}]|[\u200D\uFE0F]/gu, '').replace(/\s{2,}/g, ' ').trim();
 
-  // Word-wrap text
   const wrapText = (txt: string, font: typeof helvetica, size: number, maxW: number): string[] => {
     const words = txt.split(' ');
     const lines: string[] = [];
@@ -234,7 +202,6 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     return lines.length ? lines : [''];
   };
 
-  // Parse markdown into styled blocks
   type Block =
     | { type: 'title'; text: string }
     | { type: 'h1'; text: string }
@@ -246,8 +213,6 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     | { type: 'blank' };
 
   const blocks: Block[] = [];
-
-  // Add document title
   blocks.push({ type: 'title', text: stripEmoji(title) });
   blocks.push({ type: 'divider' });
   blocks.push({ type: 'blank' });
@@ -271,13 +236,11 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     }
   }
 
-  // Render blocks onto pages
   let page = doc.addPage([PAGE_W, PAGE_H]);
   let y = PAGE_H - MARGIN_TOP;
 
   const ensureSpace = (needed: number) => {
     if (y - needed < MARGIN_BOTTOM) {
-      // Footer
       page.drawText(`${title}`, { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
       page.drawText(`${doc.getPageCount()}`, { x: PAGE_W - MARGIN_X - 10, y: 20, size: 7, font: helvetica, color: medGray });
       page = doc.addPage([PAGE_W, PAGE_H]);
@@ -289,7 +252,6 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     switch (block.type) {
       case 'title': {
         ensureSpace(40);
-        // Purple background bar
         page.drawRectangle({ x: 0, y: y - 8, width: PAGE_W, height: 36, color: accentBg });
         page.drawRectangle({ x: 0, y: y - 8, width: 4, height: 36, color: purple });
         const titleLines = wrapText(block.text, helveticaBold, 20, CONTENT_W - 10);
@@ -339,7 +301,6 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
       case 'bullet': {
         ensureSpace(LINE_H);
         const bulletLines = wrapText(block.text, helvetica, 10.5, CONTENT_W - 20);
-        // Bullet dot
         page.drawCircle({ x: MARGIN_X + 6, y: y + 3, size: 2.5, color: purple });
         for (let i = 0; i < bulletLines.length; i++) {
           page.drawText(bulletLines[i], { x: MARGIN_X + 16, y: y, size: 10.5, font: helvetica, color: darkGray });
@@ -375,7 +336,6 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     }
   }
 
-  // Last page footer
   page.drawText(stripEmoji(title), { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
   page.drawText(`${doc.getPageCount()}`, { x: PAGE_W - MARGIN_X - 10, y: 20, size: 7, font: helvetica, color: medGray });
 
