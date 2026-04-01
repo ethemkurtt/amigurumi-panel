@@ -316,8 +316,7 @@ export default function SettingsPage() {
             <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
               <h3 className="text-base font-semibold text-white mb-1">Baslik Sablonu</h3>
               <p className="text-white/40 text-xs mb-4">
-                Etsy baslik sablonu. <code className="text-purple-300">{'{name}'}</code> = urun adi,{' '}
-                <code className="text-purple-300">{'{size}'}</code> = boyut ile otomatik degistirilir. Maksimum 140 karakter.
+                Referans baslik. GPT bunu ornek alip her urun icin uyarlar. Maksimum 140 karakter.
               </p>
               <textarea
                 value={settings.titleTemplate}
@@ -329,25 +328,24 @@ export default function SettingsPage() {
                 <p className="text-xs text-white/40">Ornek Basliklar (tiklayarak kullan):</p>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    'Cute {name} Amigurumi Crochet Toy | Handmade {name} Stuffed Animal | Crochet {name} Plushie Gift',
-                    '{name} Amigurumi | Handmade Crochet {name} | {size}cm Stuffed {name} Toy | Baby Safe Gift',
-                    'Adorable Crochet {name} Toy | Amigurumi {name} Plush | Nursery Decor | Handmade Gift',
+                    'Amigurumi Horse Crochet Pattern – Low Sew Farm Animal (PDF Pattern)',
+                    'Cute Bunny Amigurumi Crochet Pattern | Handmade Stuffed Animal PDF Tutorial',
+                    'Adorable Cat Amigurumi Pattern – Easy Crochet Toy PDF | Beginner Friendly',
                   ].map((tpl, i) => (
                     <button
                       key={i}
                       onClick={() => update('titleTemplate', tpl)}
                       className="text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/50 hover:text-white/80 transition-colors text-left"
                     >
-                      {tpl.substring(0, 60)}...
+                      {tpl.substring(0, 70)}...
                     </button>
                   ))}
                 </div>
               </div>
-              {/* Onizleme */}
-              <div className="mt-4 bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-                <p className="text-xs text-green-300/60 mb-1">Onizleme (Zebra, 25cm):</p>
-                <p className="text-sm text-green-300">
-                  {settings.titleTemplate.replace(/\{name\}/g, 'Zebra').replace(/\{size\}/g, settings.defaultSize)}
+              {/* Bilgi */}
+              <div className="mt-4 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                <p className="text-xs text-blue-300/60">
+                  💡 GPT bu basligi referans alir ve urun adina gore uyarlar. Ornegin "Horse" yerine "Cat" yazarsa baslik otomatik degisir.
                 </p>
               </div>
             </section>
@@ -356,8 +354,7 @@ export default function SettingsPage() {
             <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
               <h3 className="text-base font-semibold text-white mb-1">Aciklama Sablonu</h3>
               <p className="text-white/40 text-xs mb-4">
-                Etsy urun aciklamasi sablonu. <code className="text-purple-300">{'{name}'}</code> ve{' '}
-                <code className="text-purple-300">{'{size}'}</code> otomatik degistirilir.
+                Referans aciklama. GPT bunu ornek alip her urun icin format, emoji ve yapiya sadik kalarak uyarlar.
               </p>
               <textarea
                 value={settings.descriptionTemplate}
@@ -370,7 +367,7 @@ export default function SettingsPage() {
                   onClick={() =>
                     update(
                       'descriptionTemplate',
-                      'Meet this adorable handmade {name} amigurumi! This cute crochet {name} toy is approximately {size}cm tall, made with premium quality yarn and filled with hypoallergenic stuffing.\n\nPerfect as a gift for kids, nursery decor, or a collectible for amigurumi lovers. Each piece is carefully handcrafted with attention to detail.\n\nFeatures:\n- Handmade with love\n- Approximately {size}cm tall\n- Made with premium acrylic yarn\n- Hypoallergenic polyester filling\n- Safety eyes\n- Machine washable (gentle cycle)'
+                      '🐴 Amigurumi Horse Crochet Pattern – PDF Tutorial\n\nThis adorable Amigurumi Horse Crochet Pattern is a perfect project for both beginners and experienced crocheters. With step-by-step instructions, detailed explanations, and clear guidance, you can easily create this cute, soft, and farm-themed horse plush. It\'s a wonderful choice for children, nursery décor, farm animal lovers, or anyone who enjoys collecting cute handmade plushies!\n\n📥 What\'s Included in the PDF\n\n🧶 Step-by-step written instructions\n📸 Clear reference photos\n✂️ Materials and tools list\n🪡 Hook size and yarn details\n🐣 Beginner-friendly techniques explained simply\n\nYou can print the pattern as many times as you like and reuse it whenever needed.\n\n⭐ Skill Level\nBeginner – Intermediate\nAnyone familiar with basic stitches, increases, and decreases can easily complete this project.\n\n📦 Instant Digital Download\nOnce your payment is completed, you can instantly access your PDF file.\nYour pattern will always be available in your Etsy Purchases & Reviews section.\n\n❤️ Usage & Permissions\nYou may sell the finished items made from this pattern.\nPlease do not share, copy, or resell the pattern itself.\n\n⚠️ IMPORTANT\nThis is a DIGITAL crochet pattern.\nNo physical item will be shipped.\nDigital downloads are non-refundable and cannot be canceled.'
                     )
                   }
                   className="text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white/50 hover:text-white/80 transition-colors"
@@ -384,7 +381,7 @@ export default function SettingsPage() {
             <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
               <h3 className="text-base font-semibold text-white mb-1">Varsayilan Etiketler</h3>
               <p className="text-white/40 text-xs mb-4">
-                Etsy etiketleri (virgul ile ayirin). AI uretimi sirasinda urun adina gore ek etiketler olusturulur.
+                Referans etiketler (virgul ile ayirin). GPT bunlari ornek alip urun adina gore uyarlar.
                 Maksimum 13 etiket.
               </p>
               <textarea
