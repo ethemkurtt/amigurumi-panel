@@ -13,6 +13,7 @@ export default function GeneratePage() {
   const [pdfUrl, setPdfUrl] = useState('');
   const [pdfName, setPdfName] = useState('');
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfPrompt, setPdfPrompt] = useState('');
   const [selectedConcepts, setSelectedConcepts] = useState<SelectedConcept[]>([]);
   const [size, setSize] = useState('25');
   const [extraNotes, setExtraNotes] = useState('');
@@ -64,7 +65,7 @@ export default function GeneratePage() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: productName, referenceImageUrl, originalPdfUrl: pdfUrl || undefined, size }),
+        body: JSON.stringify({ name: productName, referenceImageUrl, originalPdfUrl: pdfUrl || undefined, pdfPrompt: pdfPrompt || undefined, size }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -82,6 +83,7 @@ export default function GeneratePage() {
     setStep('processing');
 
     try {
+      // Gorsel uretimi (n8n)
       const res = await fetch('/api/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,6 +96,15 @@ export default function GeneratePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
+      // PDF varsa Claude ile paralel duzenle (fire & forget)
+      if (pdfUrl && pdfPrompt) {
+        fetch('/api/claude-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, prompt: pdfPrompt }),
+        }).catch(() => {}); // Hata olursa sessizce devam et
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'n8n tetiklenemedi');
       setStep('backgrounds');
@@ -237,6 +248,37 @@ export default function GeneratePage() {
                       </label>
                     )}
                   </div>
+
+                  {/* PDF yuklendiyse Claude prompt alani goster */}
+                  {pdfUrl && (
+                    <div className="mt-3 space-y-2">
+                      <label className="block text-sm text-white/60">🤖 Claude PDF Prompt</label>
+                      <p className="text-white/30 text-xs">Claude bu prompt&apos;a gore PDF&apos;i duzenleyecek (gorsel uretimiyle paralel calisir)</p>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {[
+                          { label: 'Ad degistir', prompt: `Change the animal name to "${productName || 'NEW_NAME'}". Update all references.` },
+                          { label: 'Ingilizceye cevir', prompt: 'Translate the entire document to English. Keep same format.' },
+                          { label: 'Turkceye cevir', prompt: 'Translate the entire document to Turkish. Keep same format.' },
+                        ].map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setPdfPrompt(s.prompt)}
+                            className="text-[10px] bg-purple-500/10 border border-purple-500/20 rounded-lg px-2 py-1 text-purple-300/70 hover:text-purple-300 hover:bg-purple-500/20 transition-all"
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={pdfPrompt}
+                        onChange={(e) => setPdfPrompt(e.target.value)}
+                        rows={2}
+                        placeholder="orn: Hayvan adini Cat olarak degistir ve Ingilizceye cevir..."
+                        className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-white placeholder-white/20 text-xs focus:outline-none focus:border-purple-400 transition-colors resize-none"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -355,6 +397,7 @@ export default function GeneratePage() {
                   setReferenceImageUrl('');
                   setPdfUrl('');
                   setPdfName('');
+                  setPdfPrompt('');
                   setSelectedConcepts([]);
                   setProductId('');
                   setImageCount(0);
