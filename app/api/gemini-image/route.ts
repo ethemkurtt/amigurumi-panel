@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const maxDuration = 120;
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function callGeminiWithRetry(geminiKey: string, base64Data: string, prompt: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`;
+  const body = JSON.stringify({
+    contents: [{
+      parts: [
+        { inlineData: { mimeType: 'image/png', data: base64Data } },
+        { text: prompt },
+      ],
+    }],
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+  });
+
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = attempt * 8000; // 8s, 16s
+      console.log(`Gemini retry ${attempt}/${maxRetries}, waiting ${delay}ms...`);
+      await sleep(delay);
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+
+    if (res.status === 429 && attempt < maxRetries - 1) {
+      console.log('Gemini 429 rate limit, will retry...');
+      continue;
+    }
+
+    return res;
+  }
+
+  throw new Error('Gemini max retries exceeded');
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
@@ -30,23 +69,8 @@ export async function POST(req: NextRequest) {
       base64Data = buffer.toString('base64');
     }
 
-    // Call Gemini API
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { inlineData: { mimeType: 'image/png', data: base64Data } },
-              { text: prompt },
-            ],
-          }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-        }),
-      }
-    );
+    // Call Gemini API with auto-retry on 429
+    const geminiRes = await callGeminiWithRetry(geminiKey, base64Data, prompt);
 
     if (!geminiRes.ok) {
       const err = await geminiRes.json();
