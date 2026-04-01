@@ -182,8 +182,9 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
   const lightBg = rgb(0.95, 0.95, 0.98);
   const accentBg = rgb(0.93, 0.9, 1.0);
 
-  const stripEmoji = (s: string) =>
-    s.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]|[\u{1F900}-\u{1F9FF}]|[\u{2702}-\u{27B0}]|[\u{24C2}-\u{1F251}]|[\u200D\uFE0F]/gu, '').replace(/\s{2,}/g, ' ').trim();
+  // WinAnsi (Latin-1) desteklemeyen tum karakterleri temizle
+  const stripNonWinAnsi = (s: string) =>
+    s.replace(/[^\x20-\x7E\xA0-\xFF]/g, '').replace(/\s{2,}/g, ' ').trim();
 
   const wrapText = (txt: string, font: typeof helvetica, size: number, maxW: number): string[] => {
     const words = txt.split(' ');
@@ -213,26 +214,26 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     | { type: 'blank' };
 
   const blocks: Block[] = [];
-  blocks.push({ type: 'title', text: stripEmoji(title) });
+  blocks.push({ type: 'title', text: stripNonWinAnsi(title) });
   blocks.push({ type: 'divider' });
   blocks.push({ type: 'blank' });
 
   for (const rawLine of text.split('\n')) {
     const line = rawLine.trimEnd();
     if (line.startsWith('### ')) {
-      blocks.push({ type: 'h3', text: stripEmoji(line.slice(4)) });
+      blocks.push({ type: 'h3', text: stripNonWinAnsi(line.slice(4)) });
     } else if (line.startsWith('## ')) {
-      blocks.push({ type: 'h2', text: stripEmoji(line.slice(3)) });
+      blocks.push({ type: 'h2', text: stripNonWinAnsi(line.slice(3)) });
     } else if (line.startsWith('# ')) {
-      blocks.push({ type: 'h1', text: stripEmoji(line.slice(2)) });
+      blocks.push({ type: 'h1', text: stripNonWinAnsi(line.slice(2)) });
     } else if (line.startsWith('---') || line.startsWith('***')) {
       blocks.push({ type: 'divider' });
     } else if (/^\s*[-*]\s/.test(line)) {
-      blocks.push({ type: 'bullet', text: stripEmoji(line.replace(/^\s*[-*]\s+/, '')) });
+      blocks.push({ type: 'bullet', text: stripNonWinAnsi(line.replace(/^\s*[-*]\s+/, '')) });
     } else if (line.trim() === '') {
       blocks.push({ type: 'blank' });
     } else {
-      blocks.push({ type: 'text', text: stripEmoji(line) });
+      blocks.push({ type: 'text', text: stripNonWinAnsi(line) });
     }
   }
 
@@ -336,7 +337,7 @@ async function generatePdfFromText(text: string, title: string): Promise<Uint8Ar
     }
   }
 
-  page.drawText(stripEmoji(title), { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
+  page.drawText(stripNonWinAnsi(title), { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
   page.drawText(`${doc.getPageCount()}`, { x: PAGE_W - MARGIN_X - 10, y: 20, size: 7, font: helvetica, color: medGray });
 
   return doc.save();
