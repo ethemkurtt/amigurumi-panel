@@ -173,142 +173,195 @@ Return ONLY the edited document content.`,
   }
 }
 
-// Basit text-to-PDF (minimal, pure text)
+// Professional PDF generation with pdf-lib
 async function generatePdfFromText(text: string, title: string): Promise<Uint8Array> {
-  // PDF header
-  const lines = text.split('\n');
-  const pdfLines: string[] = [];
+  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
 
-  // Clean title
-  const cleanTitle = title.replace(/[^\x20-\x7E]/g, '');
+  const doc = await PDFDocument.create();
+  const helvetica = await doc.embedFont(StandardFonts.Helvetica);
+  const helveticaBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  // Build simple PDF manually
-  let yPos = 750;
-  const pageWidth = 612;
-  const margin = 50;
-  const lineHeight = 14;
-  const maxCharsPerLine = 80;
-  const contentLines: { text: string; size: number; bold: boolean }[] = [];
+  const PAGE_W = 612;
+  const PAGE_H = 792;
+  const MARGIN_X = 50;
+  const MARGIN_TOP = 50;
+  const MARGIN_BOTTOM = 50;
+  const CONTENT_W = PAGE_W - MARGIN_X * 2;
+  const LINE_H = 16;
 
-  // Title
-  contentLines.push({ text: cleanTitle, size: 18, bold: true });
-  contentLines.push({ text: '', size: 12, bold: false });
+  // Colors
+  const purple = rgb(0.45, 0.27, 0.8);
+  const darkGray = rgb(0.15, 0.15, 0.15);
+  const medGray = rgb(0.35, 0.35, 0.35);
+  const lightBg = rgb(0.95, 0.95, 0.98);
+  const accentBg = rgb(0.93, 0.9, 1.0);
 
-  for (const line of lines) {
-    const cleanLine = line
-      .replace(/[^\x20-\x7EÀ-ÿ\u0100-\u017F]/g, '')
-      .replace(/^#+\s*/, '');
+  // Strip emojis for PDF (Helvetica doesn't support them)
+  const stripEmoji = (s: string) =>
+    s.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]|[\u{1F900}-\u{1F9FF}]|[\u{2702}-\u{27B0}]|[\u{24C2}-\u{1F251}]|[\u200D\uFE0F]/gu, '').replace(/\s{2,}/g, ' ').trim();
 
-    if (line.startsWith('# ')) {
-      contentLines.push({ text: '', size: 12, bold: false });
-      contentLines.push({ text: cleanLine, size: 16, bold: true });
-    } else if (line.startsWith('## ')) {
-      contentLines.push({ text: '', size: 12, bold: false });
-      contentLines.push({ text: cleanLine, size: 14, bold: true });
-    } else if (cleanLine.length > maxCharsPerLine) {
-      // Word wrap
-      const words = cleanLine.split(' ');
-      let current = '';
-      for (const word of words) {
-        if ((current + ' ' + word).length > maxCharsPerLine) {
-          contentLines.push({ text: current, size: 11, bold: false });
-          current = word;
-        } else {
-          current = current ? current + ' ' + word : word;
-        }
+  // Word-wrap text
+  const wrapText = (txt: string, font: typeof helvetica, size: number, maxW: number): string[] => {
+    const words = txt.split(' ');
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (font.widthOfTextAtSize(test, size) > maxW && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
       }
-      if (current) contentLines.push({ text: current, size: 11, bold: false });
-    } else {
-      contentLines.push({ text: cleanLine || '', size: 11, bold: false });
     }
-  }
-
-  // Generate PDF bytes
-  const objects: string[] = [];
-  let objectCount = 0;
-  const offsets: number[] = [];
-
-  const addObject = (content: string) => {
-    objectCount++;
-    offsets.push(-1); // placeholder
-    objects.push(`${objectCount} 0 obj\n${content}\nendobj\n`);
-    return objectCount;
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
   };
 
-  // Object 1: Catalog
-  addObject('<< /Type /Catalog /Pages 2 0 R >>');
+  // Parse markdown into styled blocks
+  type Block =
+    | { type: 'title'; text: string }
+    | { type: 'h1'; text: string }
+    | { type: 'h2'; text: string }
+    | { type: 'h3'; text: string }
+    | { type: 'bullet'; text: string }
+    | { type: 'text'; text: string }
+    | { type: 'divider' }
+    | { type: 'blank' };
 
-  // Build pages
-  const linesPerPage = Math.floor((750 - 50) / lineHeight);
-  const pages: { text: string; size: number; bold: boolean }[][] = [];
-  let currentPage: { text: string; size: number; bold: boolean }[] = [];
+  const blocks: Block[] = [];
 
-  for (const cl of contentLines) {
-    currentPage.push(cl);
-    if (currentPage.length >= linesPerPage) {
-      pages.push(currentPage);
-      currentPage = [];
+  // Add document title
+  blocks.push({ type: 'title', text: stripEmoji(title) });
+  blocks.push({ type: 'divider' });
+  blocks.push({ type: 'blank' });
+
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trimEnd();
+    if (line.startsWith('### ')) {
+      blocks.push({ type: 'h3', text: stripEmoji(line.slice(4)) });
+    } else if (line.startsWith('## ')) {
+      blocks.push({ type: 'h2', text: stripEmoji(line.slice(3)) });
+    } else if (line.startsWith('# ')) {
+      blocks.push({ type: 'h1', text: stripEmoji(line.slice(2)) });
+    } else if (line.startsWith('---') || line.startsWith('***')) {
+      blocks.push({ type: 'divider' });
+    } else if (/^\s*[-*]\s/.test(line)) {
+      blocks.push({ type: 'bullet', text: stripEmoji(line.replace(/^\s*[-*]\s+/, '')) });
+    } else if (line.trim() === '') {
+      blocks.push({ type: 'blank' });
+    } else {
+      blocks.push({ type: 'text', text: stripEmoji(line) });
     }
   }
-  if (currentPage.length > 0) pages.push(currentPage);
-  if (pages.length === 0) pages.push([{ text: 'Empty document', size: 12, bold: false }]);
 
-  // Object 2: Pages
-  const pageObjIds: number[] = [];
-  // Reserve object 2 for Pages, 3 for Font
-  addObject('PAGES_PLACEHOLDER');
-  addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-  const boldFontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  // Render blocks onto pages
+  let page = doc.addPage([PAGE_W, PAGE_H]);
+  let y = PAGE_H - MARGIN_TOP;
 
-  // Create page objects
-  for (const page of pages) {
-    // Content stream
-    let streamContent = '';
-    let y = 750;
-
-    for (const line of page) {
-      const fontRef = line.bold ? `/F2` : `/F1`;
-      const escaped = line.text
-        .replace(/\\/g, '\\\\')
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)');
-      streamContent += `BT ${fontRef} ${line.size} Tf ${margin} ${y} Td (${escaped}) Tj ET\n`;
-      y -= lineHeight + (line.size > 12 ? 6 : 0);
+  const ensureSpace = (needed: number) => {
+    if (y - needed < MARGIN_BOTTOM) {
+      // Footer
+      page.drawText(`${title}`, { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
+      page.drawText(`${doc.getPageCount()}`, { x: PAGE_W - MARGIN_X - 10, y: 20, size: 7, font: helvetica, color: medGray });
+      page = doc.addPage([PAGE_W, PAGE_H]);
+      y = PAGE_H - MARGIN_TOP;
     }
+  };
 
-    const streamId = addObject(
-      `<< /Length ${streamContent.length} >>\nstream\n${streamContent}endstream`
-    );
-
-    const pageId = addObject(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} 792] /Contents ${streamId} 0 R /Resources << /Font << /F1 3 0 R /F2 ${boldFontId} 0 R >> >> >>`
-    );
-    pageObjIds.push(pageId);
+  for (const block of blocks) {
+    switch (block.type) {
+      case 'title': {
+        ensureSpace(40);
+        // Purple background bar
+        page.drawRectangle({ x: 0, y: y - 8, width: PAGE_W, height: 36, color: accentBg });
+        page.drawRectangle({ x: 0, y: y - 8, width: 4, height: 36, color: purple });
+        const titleLines = wrapText(block.text, helveticaBold, 20, CONTENT_W - 10);
+        for (const tl of titleLines) {
+          page.drawText(tl, { x: MARGIN_X + 8, y: y, size: 20, font: helveticaBold, color: purple });
+          y -= 24;
+        }
+        y -= 8;
+        break;
+      }
+      case 'h1': {
+        ensureSpace(36);
+        y -= 10;
+        page.drawRectangle({ x: MARGIN_X, y: y - 4, width: CONTENT_W, height: 28, color: accentBg });
+        page.drawRectangle({ x: MARGIN_X, y: y - 4, width: 3, height: 28, color: purple });
+        const h1Lines = wrapText(block.text, helveticaBold, 16, CONTENT_W - 16);
+        for (const hl of h1Lines) {
+          page.drawText(hl, { x: MARGIN_X + 10, y: y, size: 16, font: helveticaBold, color: purple });
+          y -= 20;
+        }
+        y -= 6;
+        break;
+      }
+      case 'h2': {
+        ensureSpace(28);
+        y -= 8;
+        page.drawRectangle({ x: MARGIN_X, y: y - 2, width: CONTENT_W, height: 22, color: lightBg });
+        const h2Lines = wrapText(block.text, helveticaBold, 13, CONTENT_W - 8);
+        for (const hl of h2Lines) {
+          page.drawText(hl, { x: MARGIN_X + 6, y: y, size: 13, font: helveticaBold, color: darkGray });
+          y -= 18;
+        }
+        y -= 4;
+        break;
+      }
+      case 'h3': {
+        ensureSpace(22);
+        y -= 6;
+        const h3Lines = wrapText(block.text, helveticaBold, 12, CONTENT_W);
+        for (const hl of h3Lines) {
+          page.drawText(hl, { x: MARGIN_X, y: y, size: 12, font: helveticaBold, color: darkGray });
+          y -= 16;
+        }
+        y -= 2;
+        break;
+      }
+      case 'bullet': {
+        ensureSpace(LINE_H);
+        const bulletLines = wrapText(block.text, helvetica, 10.5, CONTENT_W - 20);
+        // Bullet dot
+        page.drawCircle({ x: MARGIN_X + 6, y: y + 3, size: 2.5, color: purple });
+        for (let i = 0; i < bulletLines.length; i++) {
+          page.drawText(bulletLines[i], { x: MARGIN_X + 16, y: y, size: 10.5, font: helvetica, color: darkGray });
+          y -= LINE_H;
+        }
+        break;
+      }
+      case 'text': {
+        const textLines = wrapText(block.text, helvetica, 10.5, CONTENT_W);
+        for (const tl of textLines) {
+          ensureSpace(LINE_H);
+          page.drawText(tl, { x: MARGIN_X, y: y, size: 10.5, font: helvetica, color: darkGray });
+          y -= LINE_H;
+        }
+        break;
+      }
+      case 'divider': {
+        ensureSpace(16);
+        y -= 6;
+        page.drawLine({
+          start: { x: MARGIN_X, y: y },
+          end: { x: PAGE_W - MARGIN_X, y: y },
+          thickness: 0.5,
+          color: rgb(0.8, 0.8, 0.85),
+        });
+        y -= 10;
+        break;
+      }
+      case 'blank': {
+        y -= 8;
+        break;
+      }
+    }
   }
 
-  // Fix Pages object
-  const kidsStr = pageObjIds.map((id) => `${id} 0 R`).join(' ');
-  objects[1] = `2 0 obj\n<< /Type /Pages /Kids [${kidsStr}] /Count ${pages.length} >>\nendobj\n`;
+  // Last page footer
+  page.drawText(stripEmoji(title), { x: MARGIN_X, y: 20, size: 7, font: helvetica, color: medGray });
+  page.drawText(`${doc.getPageCount()}`, { x: PAGE_W - MARGIN_X - 10, y: 20, size: 7, font: helvetica, color: medGray });
 
-  // Build PDF
-  let pdf = '%PDF-1.4\n';
-  for (let i = 0; i < objects.length; i++) {
-    offsets[i] = pdf.length;
-    pdf += objects[i];
-  }
-
-  const xrefOffset = pdf.length;
-  pdf += 'xref\n';
-  pdf += `0 ${objectCount + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  for (let i = 0; i < objectCount; i++) {
-    pdf += offsets[i].toString().padStart(10, '0') + ' 00000 n \n';
-  }
-  pdf += 'trailer\n';
-  pdf += `<< /Size ${objectCount + 1} /Root 1 0 R >>\n`;
-  pdf += 'startxref\n';
-  pdf += `${xrefOffset}\n`;
-  pdf += '%%EOF';
-
-  return new TextEncoder().encode(pdf);
+  return doc.save();
 }
