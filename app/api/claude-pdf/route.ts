@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { Product } from '@/models/Product';
-import { uploadPdfBuffer } from '@/lib/cloudinary';
+import { uploadPdfBuffer, cloudinary } from '@/lib/cloudinary';
 
 export const maxDuration = 120;
 
@@ -25,10 +25,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Product or PDF not found' }, { status: 404 });
     }
 
-    // 1. PDF'i indir
-    const pdfResponse = await fetch(product.originalPdfUrl);
+    // 1. PDF'i indir (signed URL ile - Cloudinary raw ACL kısıtlaması için)
+    const rawUrl = product.originalPdfUrl;
+    // URL'den public_id çıkar: .../upload/v123/amigurumi/pdfs/file.pdf → amigurumi/pdfs/file
+    const uploadIdx = rawUrl.indexOf('/upload/');
+    const pathAfterUpload = rawUrl.substring(uploadIdx + 8); // skip "/upload/"
+    const withoutVersion = pathAfterUpload.replace(/^v\d+\//, ''); // remove version
+    const publicId = withoutVersion.replace(/\.pdf$/, ''); // remove extension
+
+    const signedUrl = cloudinary.url(publicId, {
+      resource_type: 'raw',
+      type: 'upload',
+      sign_url: true,
+      secure: true,
+    });
+    console.log('Downloading PDF, signed URL:', signedUrl);
+
+    const pdfResponse = await fetch(signedUrl, { redirect: 'follow' });
     if (!pdfResponse.ok) {
-      return NextResponse.json({ error: 'PDF indirilemedi' }, { status: 500 });
+      console.error('PDF download failed:', pdfResponse.status, pdfResponse.statusText);
+      return NextResponse.json({ error: 'PDF indirilemedi', status: pdfResponse.status, statusText: pdfResponse.statusText }, { status: 500 });
     }
     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
     const pdfBase64 = pdfBuffer.toString('base64');

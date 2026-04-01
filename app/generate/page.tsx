@@ -97,13 +97,18 @@ export default function GeneratePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      // PDF varsa Claude ile paralel duzenle (fire & forget)
+      // PDF varsa Claude ile paralel duzenle
       if (pdfUrl && pdfPrompt) {
         fetch('/api/claude-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ productId, prompt: pdfPrompt }),
-        }).catch(() => {}); // Hata olursa sessizce devam et
+        }).then(async (r) => {
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            console.error('Claude PDF error:', err);
+          }
+        }).catch((err) => console.error('Claude PDF fetch error:', err));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'n8n tetiklenemedi');
