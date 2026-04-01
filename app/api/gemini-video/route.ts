@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
           parameters: {
             aspectRatio: '9:16',
             durationSeconds: 8,
-            numberOfVideos: 1,
           },
         }),
       }
