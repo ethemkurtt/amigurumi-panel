@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    const { name, referenceImageUrl } = body;
+    const { name, referenceImageUrl, originalPdfUrl, size } = body;
 
     if (!name || !referenceImageUrl) {
       return NextResponse.json({ error: 'name and referenceImageUrl are required' }, { status: 400 });
@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
 
     const product = await Product.create({
       name,
+      size: size || '25',
       referenceImageUrl,
+      originalPdfUrl: originalPdfUrl || undefined,
       status: 'draft',
     });
 

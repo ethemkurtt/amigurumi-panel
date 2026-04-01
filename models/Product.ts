@@ -12,12 +12,16 @@ export interface IGeneratedImage {
 export interface IProduct extends Document {
   _id: Types.ObjectId;
   name: string;
+  size?: string;
   referenceImageUrl: string;
   generatedImages: IGeneratedImage[];
   title: string;
   description: string;
   tags: string[];
   status: 'draft' | 'generating' | 'completed';
+  originalPdfUrl?: string;
+  processedPdfUrl?: string;
+  pdfPrompt?: string;
   pdfUrl?: string;
   lastError?: string;
   createdAt: Date;
@@ -35,7 +39,11 @@ const GeneratedImageSchema = new Schema<IGeneratedImage>({
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
+    size: { type: String, default: '25' },
     referenceImageUrl: { type: String, required: true },
+    originalPdfUrl: { type: String },
+    processedPdfUrl: { type: String },
+    pdfPrompt: { type: String },
     generatedImages: { type: [GeneratedImageSchema], default: [] },
     title: { type: String, default: '' },
     description: { type: String, default: '' },

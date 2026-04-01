@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadImageBuffer } from '@/lib/cloudinary';
+import { uploadImageBuffer, uploadPdfBuffer } from '@/lib/cloudinary';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,10 +12,16 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
+    const isPdf = file.type === 'application/pdf' || file.name?.endsWith('.pdf');
 
-    const url = await uploadImageBuffer(buffer, 'amigurumi/references');
+    let url: string;
+    if (isPdf) {
+      url = await uploadPdfBuffer(buffer, 'amigurumi/pdfs');
+    } else {
+      url = await uploadImageBuffer(buffer, 'amigurumi/references');
+    }
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, type: isPdf ? 'pdf' : 'image' });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });

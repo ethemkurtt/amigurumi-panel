@@ -15,12 +15,16 @@ interface GeneratedImage {
 interface Product {
   _id: string;
   name: string;
+  size?: string;
   referenceImageUrl: string;
   generatedImages: GeneratedImage[];
   title: string;
   description: string;
   tags: string[];
   status: 'draft' | 'generating' | 'completed';
+  originalPdfUrl?: string;
+  processedPdfUrl?: string;
+  pdfPrompt?: string;
   pdfUrl?: string;
   lastError?: string;
   createdAt: string;
@@ -33,13 +37,20 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
   const [activeImg, setActiveImg] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tagsInput, setTagsInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'images' | 'content'>('images');
+  const [activeTab, setActiveTab] = useState<'images' | 'content' | 'pdf'>('images');
+
+  // PDF states
+  const [pdfPrompt, setPdfPrompt] = useState('');
+  const [pdfProcessing, setPdfProcessing] = useState(false);
+  const [pdfError, setPdfError] = useState('');
+
+  // ZIP download
+  const [zipLoading, setZipLoading] = useState(false);
 
   useEffect(() => { loadProduct(); }, [id]);
 
@@ -52,7 +63,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         setTitle(data.product.title || '');
         setDescription(data.product.description || '');
         setTagsInput((data.product.tags || []).join(', '));
-        // Set first gemini image or reference as active
+        if (data.product.pdfPrompt) setPdfPrompt(data.product.pdfPrompt);
         if (data.product.generatedImages?.length > 0) {
           setActiveImg(data.product.generatedImages[0].url);
         } else {
@@ -74,56 +85,8 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         body: JSON.stringify({ title, description, tags }),
       });
       if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
-    } catch { alert('Kaydetme başarısız'); }
+    } catch { alert('Kaydetme basarisiz'); }
     finally { setSaving(false); }
-  };
-
-  const handleDownloadPdf = async () => {
-    if (!product) return;
-
-    // Eğer n8n'den daha önce üretilmiş PDF varsa direkt indir
-    if (product.pdfUrl) {
-      window.open(product.pdfUrl, '_blank');
-      return;
-    }
-
-    // Yoksa n8n'e PDF üretim isteği gönder
-    setPdfLoading(true);
-    try {
-      const res = await fetch('/api/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: id, type: 'pdf' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      // Poll for PDF URL
-      let attempts = 0;
-      const pollPdf = setInterval(async () => {
-        attempts++;
-        try {
-          const pRes = await fetch(`/api/products/${id}`);
-          const pData = await pRes.json();
-          if (pData.product?.pdfUrl) {
-            clearInterval(pollPdf);
-            setPdfLoading(false);
-            window.open(pData.product.pdfUrl, '_blank');
-            setProduct(pData.product);
-          } else if (attempts > 30) {
-            clearInterval(pollPdf);
-            setPdfLoading(false);
-            alert('PDF üretimi zaman aşımına uğradı. n8n durumunu kontrol edin.');
-          }
-        } catch {
-          clearInterval(pollPdf);
-          setPdfLoading(false);
-        }
-      }, 3000);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'PDF tetikleme başarısız');
-      setPdfLoading(false);
-    }
   };
 
   const handleDownloadImage = async (url: string, label: string) => {
@@ -134,14 +97,45 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       a.href = URL.createObjectURL(blob);
       a.download = `amigurumi-${label.replace(/\s+/g, '-').toLowerCase()}.png`;
       a.click();
-    } catch { alert('İndirme başarısız'); }
+    } catch { alert('Indirme basarisiz'); }
   };
 
-  const handleDownloadAll = async () => {
+  const handleDownloadZip = async () => {
     if (!product) return;
-    for (const img of product.generatedImages || []) {
-      await handleDownloadImage(img.url, img.backgroundLabel);
-      await new Promise((r) => setTimeout(r, 300));
+    setZipLoading(true);
+    try {
+      const res = await fetch(`/api/download-all?productId=${product._id}`);
+      if (!res.ok) throw new Error('ZIP indirilemedi');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${product.name.replace(/\s+/g, '-').toLowerCase()}-etsy-pack.zip`;
+      a.click();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'ZIP indirme basarisiz');
+    } finally {
+      setZipLoading(false);
+    }
+  };
+
+  const handleProcessPdf = async () => {
+    if (!product || !pdfPrompt.trim()) return;
+    setPdfProcessing(true);
+    setPdfError('');
+    try {
+      const res = await fetch('/api/claude-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product._id, prompt: pdfPrompt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'PDF isleme basarisiz');
+      // Reload product to get new processedPdfUrl
+      await loadProduct();
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : 'PDF isleme basarisiz');
+    } finally {
+      setPdfProcessing(false);
     }
   };
 
@@ -150,7 +144,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-2 border-white/20 border-t-purple-400 rounded-full animate-spin" />
-          <p className="text-white/50 text-sm">Yükleniyor...</p>
+          <p className="text-white/50 text-sm">Yukleniyor...</p>
         </div>
       </div>
     );
@@ -160,8 +154,8 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-white/50 text-lg">Ürün bulunamadı</p>
-          <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block">← Ana Sayfaya Dön</Link>
+          <p className="text-white/50 text-lg">Urun bulunamadi</p>
+          <Link href="/" className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block">← Ana Sayfaya Don</Link>
         </div>
       </div>
     );
@@ -170,6 +164,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const geminiImages = product.generatedImages || [];
   const tagList = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
   const totalImages = geminiImages.length;
+  const hasPdf = !!product.originalPdfUrl;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -181,26 +176,21 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
             <div>
               <h1 className="text-base font-bold text-white">{product.name}</h1>
               <p className="text-xs text-white/40">
-                {totalImages} Gemini görseli • {new Date(product.createdAt).toLocaleDateString('tr-TR')}
+                {totalImages} gorsel{hasPdf ? ' + PDF' : ''} • {new Date(product.createdAt).toLocaleDateString('tr-TR')}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleDownloadAll}
-              disabled={totalImages === 0}
-              className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-all"
+              onClick={handleDownloadZip}
+              disabled={zipLoading || (totalImages === 0 && !hasPdf)}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-purple-500 to-orange-500 hover:from-purple-400 hover:to-orange-400 disabled:opacity-40 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all"
             >
-              ⬇️ Tümünü İndir
-            </button>
-            <button
-              onClick={handleDownloadPdf}
-              disabled={pdfLoading}
-              className="flex items-center gap-1.5 bg-purple-500 hover:bg-purple-400 disabled:opacity-60 text-white text-xs font-medium px-3 py-2 rounded-lg transition-all"
-            >
-              {pdfLoading
-                ? <><span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> PDF...</>
-                : '📄 PDF İndir'}
+              {zipLoading ? (
+                <><span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> ZIP...</>
+              ) : (
+                '📦 Tumunu Indir (ZIP)'
+              )}
             </button>
           </div>
         </div>
@@ -209,11 +199,15 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Tabs */}
         <div className="flex gap-1 bg-white/5 rounded-xl p-1 w-fit mb-8">
-          {(['images', 'content'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+          {([
+            { key: 'images' as const, label: '🖼️ Gorseller', show: true },
+            { key: 'pdf' as const, label: '📄 PDF', show: hasPdf },
+            { key: 'content' as const, label: '📝 Icerik', show: true },
+          ]).filter(t => t.show).map((tab) => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-all
-                ${activeTab === tab ? 'bg-purple-500 text-white' : 'text-white/50 hover:text-white'}`}>
-              {tab === 'images' ? '🖼️ Görseller' : '📝 İçerik'}
+                ${activeTab === tab.key ? 'bg-purple-500 text-white' : 'text-white/50 hover:text-white'}`}>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -223,7 +217,6 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
           <div className="grid lg:grid-cols-[1fr_300px] gap-8">
             {/* Main viewer */}
             <div className="space-y-4">
-              {/* Reference image */}
               <div>
                 <p className="text-xs text-white/40 font-medium mb-2 uppercase tracking-wider">Yuklenen Gorsel</p>
                 <button
@@ -235,40 +228,39 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                 </button>
               </div>
 
-              {/* Active large image */}
               <div className="relative bg-black/30 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center"
                 style={{ maxHeight: 520, aspectRatio: '1/1' }}>
                 {activeImg ? (
                   <>
-                    <img src={activeImg} alt="Aktif görsel" className="w-full h-full object-contain" />
+                    <img src={activeImg} alt="Aktif gorsel" className="w-full h-full object-contain" />
                     <button
                       onClick={() => handleDownloadImage(activeImg, 'gorsel')}
                       className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm transition-all"
                     >
-                      ⬇️ İndir
+                      ⬇️ Indir
                     </button>
                   </>
                 ) : (
-                  <p className="text-white/30">Görsel seçin</p>
+                  <p className="text-white/30">Gorsel secin</p>
                 )}
               </div>
             </div>
 
-            {/* Gemini sidebar */}
+            {/* Sidebar */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
-                  Gemini Arkaplanlar ({totalImages})
+                  AI Arkaplanlar ({totalImages})
                 </p>
               </div>
 
               {totalImages === 0 ? (
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center space-y-3">
                   <div className="text-3xl opacity-40">✨</div>
-                  <p className="text-white/30 text-sm">Henüz Gemini görseli yok</p>
+                  <p className="text-white/30 text-sm">Henuz AI gorseli yok</p>
                   <Link href="/generate"
                     className="inline-block text-purple-400 hover:text-purple-300 text-xs border border-purple-500/30 px-3 py-1.5 rounded-lg transition-colors">
-                    Yeni Görsel Üret →
+                    Yeni Gorsel Uret →
                   </Link>
                 </div>
               ) : (
@@ -286,7 +278,6 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                       <button
                         onClick={() => handleDownloadImage(img.url, img.backgroundLabel)}
                         className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white text-xs p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="İndir"
                       >⬇️</button>
                     </div>
                   ))}
@@ -296,40 +287,152 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
           </div>
         )}
 
+        {/* ── TAB: PDF ────────────────────────────────────────────────── */}
+        {activeTab === 'pdf' && hasPdf && (
+          <div className="space-y-8">
+            {/* PDF Viewer */}
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Original PDF */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">📄 Orijinal PDF</h3>
+                  <a
+                    href={product.originalPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                  >
+                    ⬇️ Indir
+                  </a>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden" style={{ height: 500 }}>
+                  <iframe
+                    src={`${product.originalPdfUrl}#toolbar=0`}
+                    className="w-full h-full"
+                    title="Original PDF"
+                  />
+                </div>
+              </div>
+
+              {/* Processed PDF (if exists) */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">
+                    {product.processedPdfUrl ? '✅ Duzenlenmis PDF' : '🤖 Claude ile Duzenle'}
+                  </h3>
+                  {product.processedPdfUrl && (
+                    <a
+                      href={product.processedPdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                    >
+                      ⬇️ Indir
+                    </a>
+                  )}
+                </div>
+
+                {product.processedPdfUrl ? (
+                  <div className="bg-white/5 border border-green-500/20 rounded-2xl overflow-hidden" style={{ height: 500 }}>
+                    <iframe
+                      src={`${product.processedPdfUrl}#toolbar=0`}
+                      className="w-full h-full"
+                      title="Processed PDF"
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center" style={{ height: 500 }}>
+                    <div className="text-center space-y-3 px-8">
+                      <div className="text-5xl">🤖</div>
+                      <p className="text-white/40 text-sm">Claude ile PDF&apos;i duzenlemek icin asagidaki prompt alanini kullanin</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Claude PDF Prompt */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6 space-y-4">
+              <h3 className="text-base font-semibold text-white">🤖 Claude AI ile PDF Duzenle</h3>
+              <p className="text-white/40 text-xs">
+                PDF&apos;i Claude&apos;a gonderip bir prompt ile duzenletin. Ornegin: hayvan adini degistir, Ingilizce&apos;ye cevir, marka bilgisi ekle...
+              </p>
+
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { label: 'Hayvan adini degistir', prompt: `Change the animal name from the current one to "${product.name}". Update all references throughout the document.` },
+                  { label: 'Ingilizceye cevir', prompt: 'Translate the entire document to English while keeping the same format and structure.' },
+                  { label: 'Turkceye cevir', prompt: 'Translate the entire document to Turkish while keeping the same format and structure.' },
+                  { label: 'Marka ekle', prompt: 'Add a professional header with shop branding. Add "Designed by AmigurumiShop" at the top and footer.' },
+                ].map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPdfPrompt(s.prompt)}
+                    className="text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={pdfPrompt}
+                onChange={(e) => setPdfPrompt(e.target.value)}
+                rows={3}
+                placeholder="Claude'a ne yapmasini istiyorsun? (orn: Hayvan adini Cat olarak degistir ve Ingilizceye cevir)"
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/20 text-sm focus:outline-none focus:border-purple-400 transition-colors resize-none"
+              />
+
+              {pdfError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-300 text-sm">{pdfError}</div>
+              )}
+
+              <button
+                onClick={handleProcessPdf}
+                disabled={pdfProcessing || !pdfPrompt.trim()}
+                className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
+              >
+                {pdfProcessing ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Claude Isliyor...</>
+                ) : (
+                  '🤖 PDF Duzenle'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── TAB: Content ────────────────────────────────────────────── */}
         {activeTab === 'content' && (
           <div className="max-w-2xl space-y-6">
-            {/* Title */}
             <div>
               <label className="block text-sm font-medium text-white/60 mb-2">
-                Etsy Başlık
+                Etsy Baslik
                 <span className="text-white/30 text-xs ml-2">({title.length}/140)</span>
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 140))}
-                placeholder="Etsy ürün başlığı..."
+                placeholder="Etsy urun basligi..."
                 className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400 transition-colors"
               />
             </div>
 
-            {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-white/60 mb-2">Açıklama</label>
+              <label className="block text-sm font-medium text-white/60 mb-2">Aciklama</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ürün açıklaması..."
+                placeholder="Urun aciklamasi..."
                 rows={10}
                 className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400 transition-colors resize-none"
               />
             </div>
 
-            {/* Tags */}
             <div>
               <label className="block text-sm font-medium text-white/60 mb-2">
-                Etiketler <span className="text-white/30 text-xs">(virgülle ayır, max 13)</span>
+                Etiketler <span className="text-white/30 text-xs">(virgul ile ayir, max 13)</span>
               </label>
               <input
                 type="text"
@@ -352,7 +455,6 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
               )}
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-3 pt-2">
               <button
                 onClick={handleSave}
@@ -363,22 +465,6 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                   ? <><span className="w-4 h-4 border border-white/30 border-t-white rounded-full animate-spin" /> Kaydediliyor...</>
                   : saved ? '✅ Kaydedildi!' : '💾 Kaydet'}
               </button>
-              <button
-                onClick={handleDownloadPdf}
-                disabled={pdfLoading}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 disabled:opacity-60 text-white font-medium px-5 py-2.5 rounded-xl transition-all text-sm"
-              >
-                {pdfLoading ? 'PDF...' : '📄 PDF Oluştur & İndir'}
-              </button>
-            </div>
-
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-xs text-blue-300 space-y-1">
-              <p className="font-medium">ℹ️ PDF içeriği:</p>
-              <ul className="text-blue-300/70 space-y-0.5 ml-3">
-                <li>• Ürün adı, başlık ve açıklama</li>
-                <li>• Tüm Etsy etiketleri</li>
-                <li>• Tüm Gemini görselleri (2×2 grid)</li>
-              </ul>
             </div>
           </div>
         )}

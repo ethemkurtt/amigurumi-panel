@@ -44,4 +44,20 @@ export async function uploadImageBuffer(
   });
 }
 
+export async function uploadPdfBuffer(
+  buffer: Buffer,
+  folder: string = 'amigurumi/pdfs'
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'raw', format: 'pdf' },
+      (error, result) => {
+        if (error || !result) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
 export { cloudinary };

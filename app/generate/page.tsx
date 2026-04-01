@@ -10,6 +10,9 @@ type Step = 'upload' | 'backgrounds' | 'processing' | 'done';
 export default function GeneratePage() {
   const [productName, setProductName] = useState('');
   const [referenceImageUrl, setReferenceImageUrl] = useState('');
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfName, setPdfName] = useState('');
+  const [pdfUploading, setPdfUploading] = useState(false);
   const [selectedConcepts, setSelectedConcepts] = useState<SelectedConcept[]>([]);
   const [size, setSize] = useState('25');
   const [extraNotes, setExtraNotes] = useState('');
@@ -30,6 +33,28 @@ export default function GeneratePage() {
       .catch(() => {});
   }, []);
 
+  // PDF upload handler
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.pdf')) { setError('Sadece PDF dosyasi yukleyebilirsiniz'); return; }
+    setPdfUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPdfUrl(data.url);
+      setPdfName(file.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'PDF yuklenemedi');
+    } finally {
+      setPdfUploading(false);
+    }
+  };
+
   // Step 1 → 2
   const handleStep1 = async () => {
     if (!productName.trim()) { setError('Lutfen urun adi girin'); return; }
@@ -39,7 +64,7 @@ export default function GeneratePage() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: productName, referenceImageUrl }),
+        body: JSON.stringify({ name: productName, referenceImageUrl, originalPdfUrl: pdfUrl || undefined, size }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -174,6 +199,46 @@ export default function GeneratePage() {
                     ))}
                   </div>
                 </div>
+                {/* PDF Upload */}
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">PDF Pattern (opsiyonel)</label>
+                  <div className={`border-2 border-dashed rounded-xl p-4 transition-all ${
+                    pdfUrl ? 'border-green-500/40 bg-green-500/5' : 'border-white/15 hover:border-purple-400/40'
+                  }`}>
+                    {pdfUrl ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">📄</span>
+                          <div>
+                            <p className="text-sm text-green-300 font-medium">{pdfName}</p>
+                            <p className="text-xs text-white/30">PDF yuklendi</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => { setPdfUrl(''); setPdfName(''); }}
+                          className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10"
+                        >
+                          Kaldir
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center cursor-pointer">
+                        <span className="text-2xl mb-1">📄</span>
+                        <span className="text-xs text-white/40">
+                          {pdfUploading ? 'Yukleniyor...' : 'PDF dosyasi sec'}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={handlePdfUpload}
+                          disabled={pdfUploading}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm text-white/60 mb-1.5">Ek Notlar (opsiyonel)</label>
                   <textarea
@@ -288,6 +353,8 @@ export default function GeneratePage() {
                   setStep('upload');
                   setProductName('');
                   setReferenceImageUrl('');
+                  setPdfUrl('');
+                  setPdfName('');
                   setSelectedConcepts([]);
                   setProductId('');
                   setImageCount(0);
