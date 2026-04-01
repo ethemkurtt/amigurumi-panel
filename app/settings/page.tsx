@@ -46,20 +46,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'content' | 'pdf' | 'themes' | 'shop'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'content' | 'pdf' | 'shop'>('prompt');
   const [tagsInput, setTagsInput] = useState('');
-
-  // Custom backgrounds
-  interface CustomBg { id: string; label: string; emoji: string; category: string; prompt: string; }
-  const [customBgs, setCustomBgs] = useState<CustomBg[]>([]);
-  const [newBg, setNewBg] = useState({ label: '', emoji: '🎨', category: 'custom', prompt: '' });
-  const [bgSaving, setBgSaving] = useState(false);
-
-  const loadCustomBgs = () => {
-    fetch('/api/backgrounds').then(r => r.json()).then(d => {
-      if (d.backgrounds) setCustomBgs(d.backgrounds);
-    }).catch(() => {});
-  };
 
   useEffect(() => {
     fetch('/api/settings')
@@ -69,7 +57,6 @@ export default function SettingsPage() {
         setTagsInput(data.settings.defaultTags?.join(', ') || '');
         setLoading(false);
       });
-    loadCustomBgs();
   }, []);
 
   const handleSave = async () => {
@@ -144,7 +131,6 @@ export default function SettingsPage() {
             { key: 'prompt' as const, label: 'Gorsel Uretim', icon: '🎨' },
             { key: 'content' as const, label: 'Baslik & Aciklama', icon: '📝' },
             { key: 'pdf' as const, label: 'PDF Duzenleme', icon: '📄' },
-            { key: 'themes' as const, label: 'Temalar', icon: '🎨' },
             { key: 'shop' as const, label: 'Magaza', icon: '🏪' },
           ].map((tab) => (
             <button
@@ -448,144 +434,6 @@ export default function SettingsPage() {
                 </p>
               </div>
             </section>
-          </div>
-        )}
-
-        {/* ── TAB: Temalar ──────────────────────────────────────── */}
-        {activeTab === 'themes' && (
-          <div className="space-y-8">
-            {/* Yeni Tema Ekle */}
-            <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-base font-semibold text-white mb-1">Yeni Tema Ekle</h3>
-              <p className="text-white/40 text-xs mb-4">
-                Gorsel uretiminde kullanilacak yeni bir arka plan temasi ekleyin. Eklediginiz temalar kalici olarak kaydedilir.
-              </p>
-              <div className="space-y-4">
-                <div className="grid md:grid-cols-[1fr_80px] gap-3">
-                  <div>
-                    <label className="block text-xs text-white/50 mb-1">Tema Adi</label>
-                    <input
-                      type="text"
-                      value={newBg.label}
-                      onChange={(e) => setNewBg({ ...newBg, label: e.target.value })}
-                      placeholder="orn: Bahce Masasi"
-                      className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-white/50 mb-1">Emoji</label>
-                    <input
-                      type="text"
-                      value={newBg.emoji}
-                      onChange={(e) => setNewBg({ ...newBg, emoji: e.target.value })}
-                      className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white text-sm text-center focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-white/50 mb-1">Kategori</label>
-                  <select
-                    value={newBg.category}
-                    onChange={(e) => setNewBg({ ...newBg, category: e.target.value })}
-                    className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-purple-400"
-                  >
-                    <option value="custom">Ozel Temalar</option>
-                    <option value="living">Oturma Odasi</option>
-                    <option value="bedroom">Yatak Odasi</option>
-                    <option value="baby">Bebek Odasi</option>
-                    <option value="kids">Cocuk Odasi</option>
-                    <option value="kitchen">Mutfak & Yemek</option>
-                    <option value="study">Calisma Odasi</option>
-                    <option value="cozy">Ev Kosesi</option>
-                    <option value="general">Ev Genel</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-white/50 mb-1">AI Prompt (Ingilizce)</label>
-                  <textarea
-                    value={newBg.prompt}
-                    onChange={(e) => setNewBg({ ...newBg, prompt: e.target.value })}
-                    rows={3}
-                    placeholder="Place the amigurumi toy on a garden table with flowers around..."
-                    className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400 resize-none"
-                  />
-                </div>
-
-                <button
-                  disabled={bgSaving || !newBg.label.trim() || !newBg.prompt.trim()}
-                  onClick={async () => {
-                    setBgSaving(true);
-                    try {
-                      const res = await fetch('/api/backgrounds', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(newBg),
-                      });
-                      if (res.ok) {
-                        setNewBg({ label: '', emoji: '🎨', category: 'custom', prompt: '' });
-                        loadCustomBgs();
-                      }
-                    } catch { }
-                    finally { setBgSaving(false); }
-                  }}
-                  className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 disabled:opacity-40 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-all"
-                >
-                  {bgSaving ? 'Ekleniyor...' : 'Tema Ekle'}
-                </button>
-              </div>
-            </section>
-
-            {/* Mevcut Ozel Temalar */}
-            <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-base font-semibold text-white mb-1">Ozel Temalariniz</h3>
-              <p className="text-white/40 text-xs mb-4">
-                Eklediginiz temalar. Bu temalar gorsel uretim ekraninda varsayilan temalarla birlikte gosterilir.
-              </p>
-
-              {customBgs.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-white/30 text-sm">Henuz ozel tema eklenmemis</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {customBgs.map((bg) => (
-                    <div key={bg.id} className="flex items-start gap-4 bg-white/5 border border-white/10 rounded-xl p-4">
-                      <span className="text-2xl">{bg.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-white">{bg.label}</span>
-                          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">{bg.category}</span>
-                        </div>
-                        <p className="text-xs text-white/40 mt-1 truncate">{bg.prompt}</p>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`"${bg.label}" temasini silmek istiyor musunuz?`)) return;
-                          await fetch('/api/backgrounds', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: bg.id }),
-                          });
-                          loadCustomBgs();
-                        }}
-                        className="text-red-400/60 hover:text-red-400 text-xs shrink-0"
-                      >
-                        Sil
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Bilgi */}
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-              <p className="text-xs text-blue-300/60">
-                Prompt Ingilizce yazilmali. Ornek: &quot;Place the amigurumi toy on a wooden garden table with colorful flowers. Sunny outdoor atmosphere, natural lighting.&quot;
-              </p>
-            </div>
           </div>
         )}
 

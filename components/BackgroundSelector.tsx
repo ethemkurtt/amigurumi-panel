@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BACKGROUND_PRESETS, BACKGROUND_CATEGORIES, BackgroundPreset } from '@/constants/backgrounds';
 import {
   ConceptVariant,
@@ -65,26 +65,6 @@ export default function BackgroundSelector({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeVariantTab, setActiveVariantTab] = useState<number>(0);
-  const [customBackgrounds, setCustomBackgrounds] = useState<BackgroundPreset[]>([]);
-
-  // Ozel temalari MongoDB'den yukle
-  useEffect(() => {
-    fetch('/api/backgrounds')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.backgrounds) setCustomBackgrounds(data.backgrounds);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Sabit + ozel temalar birlesik
-  const allPresets = [...BACKGROUND_PRESETS, ...customBackgrounds];
-  const allCategories = [
-    ...BACKGROUND_CATEGORIES,
-    ...(customBackgrounds.some((b) => b.category === 'custom')
-      ? [{ id: 'custom', label: 'Ozel Temalar', emoji: '🎨' }]
-      : []),
-  ];
 
   const selectedIds = selected.map((s) => s.backgroundId);
 
@@ -164,8 +144,8 @@ export default function BackgroundSelector({
 
   const filteredPresets =
     activeCategory === 'all'
-      ? allPresets
-      : allPresets.filter((p) => p.category === activeCategory);
+      ? BACKGROUND_PRESETS
+      : BACKGROUND_PRESETS.filter((p) => p.category === activeCategory);
 
   return (
     <div className="space-y-4">
@@ -179,10 +159,10 @@ export default function BackgroundSelector({
               : 'bg-white/5 border border-white/10 text-white/40 hover:text-white/60'
           }`}
         >
-          Tumu ({allPresets.length})
+          Tumu ({BACKGROUND_PRESETS.length})
         </button>
-        {allCategories.map((cat) => {
-          const count = allPresets.filter((p) => p.category === cat.id).length;
+        {BACKGROUND_CATEGORIES.map((cat) => {
+          const count = BACKGROUND_PRESETS.filter((p) => p.category === cat.id).length;
           return (
             <button
               key={cat.id}

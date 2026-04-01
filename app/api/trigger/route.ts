@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { Product } from '@/models/Product';
 import { Settings } from '@/models/Settings';
-import { CustomBackground } from '@/models/CustomBackground';
-import { BACKGROUND_PRESETS } from '@/constants/backgrounds';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,24 +37,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Custom background prompt'larini cozumle
-    const rawConcepts = concepts || [];
-    const customBgs = await CustomBackground.find().lean();
-    const customBgMap = new Map(customBgs.map((b: Record<string, unknown>) => [b.id as string, b.prompt as string]));
-    const builtInMap = new Map(BACKGROUND_PRESETS.map((b) => [b.id, { prompt: b.prompt, label: b.label }]));
-
-    // Her concept'e prompt ve label ekle
-    const resolvedConcepts = rawConcepts.map((c: Record<string, unknown>) => {
-      const bgId = c.backgroundId as string;
-      const builtIn = builtInMap.get(bgId);
-      const customPrompt = customBgMap.get(bgId);
-      return {
-        ...c,
-        backgroundPrompt: builtIn?.prompt || customPrompt || '',
-        backgroundLabel: builtIn?.label || bgId,
-      };
-    });
-
     // Prepare payload for n8n
     const payload = {
       secret: process.env.N8N_WEBHOOK_SECRET,
@@ -66,7 +46,7 @@ export async function POST(req: NextRequest) {
       productSize: product.size || settings.defaultSize || '25',
       referenceImageUrl: product.referenceImageUrl,
       backgroundIds: backgroundIds || [],
-      concepts: resolvedConcepts,
+      concepts: concepts || [],
       promptOptions: promptOptions || {},
       // Ayarlardan gelen sablonlar
       settings: {
