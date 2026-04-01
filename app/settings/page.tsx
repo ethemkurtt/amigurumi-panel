@@ -36,6 +36,7 @@ interface SettingsData {
   titleTemplate: string;
   descriptionTemplate: string;
   defaultTags: string[];
+  defaultPdfPrompt: string;
   shopName: string;
   currency: string;
 }
@@ -45,7 +46,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'prompt' | 'content' | 'shop'>('prompt');
+  const [activeTab, setActiveTab] = useState<'prompt' | 'content' | 'pdf' | 'shop'>('prompt');
   const [tagsInput, setTagsInput] = useState('');
 
   useEffect(() => {
@@ -129,6 +130,7 @@ export default function SettingsPage() {
           {[
             { key: 'prompt' as const, label: 'Gorsel Uretim', icon: '🎨' },
             { key: 'content' as const, label: 'Baslik & Aciklama', icon: '📝' },
+            { key: 'pdf' as const, label: 'PDF Duzenleme', icon: '📄' },
             { key: 'shop' as const, label: 'Magaza', icon: '🏪' },
           ].map((tab) => (
             <button
@@ -408,6 +410,29 @@ export default function SettingsPage() {
               <p className="mt-2 text-xs text-white/30">
                 {tagsInput.split(',').filter((t) => t.trim()).length} / 13 etiket
               </p>
+            </section>
+          </div>
+        )}
+
+        {/* ── TAB: PDF Duzenleme Ayarlari ────────────────────────── */}
+        {activeTab === 'pdf' && (
+          <div className="space-y-8">
+            <section className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+              <h3 className="text-base font-semibold text-white mb-1">Varsayilan PDF Prompt</h3>
+              <p className="text-white/40 text-xs mb-4">
+                Claude AI ile PDF duzenlerken otomatik kullanilacak prompt. Her urun icin ayni prompt yeniden yazmaniza gerek kalmaz.
+              </p>
+              <textarea
+                value={settings.defaultPdfPrompt}
+                onChange={(e) => update('defaultPdfPrompt', e.target.value)}
+                rows={12}
+                className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-400 transition-colors resize-none"
+              />
+              <div className="mt-4 bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                <p className="text-xs text-blue-300/60">
+                  Bu prompt her yeni urun olusturulurken ve urun detay sayfasinda PDF duzenlerken otomatik doldurulur. Urun bazinda degistirebilirsiniz.
+                </p>
+              </div>
             </section>
           </div>
         )}

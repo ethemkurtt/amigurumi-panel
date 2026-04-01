@@ -13,6 +13,9 @@ export interface ISettings extends Document {
   descriptionTemplate: string;
   defaultTags: string[];
 
+  // PDF ayarlari
+  defaultPdfPrompt: string;
+
   // Etsy ayarlari
   shopName: string;
   currency: string;
@@ -58,6 +61,11 @@ const SettingsSchema = new Schema<ISettings>(
         'handmade toy pattern',
         'nursery decor diy',
       ],
+    },
+    defaultPdfPrompt: {
+      type: String,
+      default:
+        'Bu PDF\'teki matematiksel verileri ve tarifleri ASLA degistirme. Ornegin "R18: OR [ssc 15], WH [ssc 3], OR [ssc 12], WH [ssc 3], OR [ssc 15]. {48}" gibi satirlar AYNEN kalmali, formati degistirme.\n\nGorselleri ve telif hakki iceren icerik/logolari kaldir.\n\nMarka: TinyAmigurumiStudio - bunu kullan.\n\nSen bir ogretmen degilsin, uzman bir amigurumi tarifcisisin. Ona gore sayfalara uzman notlari ekle (sohbet balonu tarzi, PDF tasarimindan bagimsiz gorunen notlar).\n\nTum bolumleri guzelce ayir: Kafa, Body, Kulaklar, Bacaklar vs. karistirma.\n\nHer bolume guzel bir tarif semasi olustur.\n\nHer sayfaya faydali uzman notlari ekle.\n\nBasliklar, bolum ayiricilar, tasarim cok iyi olmali. Profesyonel ve guzel bir PDF tasarimi yap.',
     },
     shopName: { type: String, default: '' },
     currency: { type: String, default: 'USD' },

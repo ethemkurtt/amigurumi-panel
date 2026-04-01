@@ -65,7 +65,14 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
         setTitle(data.product.title || '');
         setDescription(data.product.description || '');
         setTagsInput((data.product.tags || []).join(', '));
-        if (data.product.pdfPrompt) setPdfPrompt(data.product.pdfPrompt);
+        if (data.product.pdfPrompt) {
+          setPdfPrompt(data.product.pdfPrompt);
+        } else {
+          // Default prompt'u ayarlardan yukle
+          fetch('/api/settings').then(r => r.json()).then(s => {
+            if (s.settings?.defaultPdfPrompt) setPdfPrompt(s.settings.defaultPdfPrompt);
+          }).catch(() => {});
+        }
         if (data.product.generatedImages?.length > 0) {
           setActiveImg(data.product.generatedImages[0].url);
         } else {

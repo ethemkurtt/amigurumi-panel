@@ -31,6 +31,7 @@ export default function GeneratePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.settings?.defaultSize) setSize(data.settings.defaultSize);
+        if (data.settings?.defaultPdfPrompt) setPdfPrompt(data.settings.defaultPdfPrompt);
       })
       .catch(() => {});
   }, []);
