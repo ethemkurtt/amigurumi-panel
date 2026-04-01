@@ -57,7 +57,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  const imageBase64 = response.imageBase64;\n  if (!imageBase64) continue;\n\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n  results.push({ json: { imageBase64, cloudTs: ts, cloudSig: sig, backgroundId: bgInfo.backgroundId, backgroundLabel: bgInfo.backgroundLabel, title: bgInfo.title, description: bgInfo.description, tags: bgInfo.tags, productId: bgInfo.productId, callbackUrl: bgInfo.callbackUrl, secret: bgInfo.secret } });\n}\n\nif (results.length === 0) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
+        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\nlet hasAnyImage = false;\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  const imageBase64 = response.imageBase64;\n  if (!imageBase64) continue;\n\n  hasAnyImage = true;\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n  results.push({ json: { imageBase64, cloudTs: ts, cloudSig: sig, backgroundId: bgInfo.backgroundId, backgroundLabel: bgInfo.backgroundLabel, title: bgInfo.title, description: bgInfo.description, tags: bgInfo.tags, productId: bgInfo.productId, callbackUrl: bgInfo.callbackUrl, secret: bgInfo.secret } });\n}\n\nif (!hasAnyImage) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -67,27 +67,48 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.noImages }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notTrue" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "id": "n_if",
+      "name": "Has Images?"
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "=https://api.cloudinary.com/v1_1/dm2jbdqxc/image/upload",
+        "url": "https://api.cloudinary.com/v1_1/dm2jbdqxc/image/upload",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ $json.noImages ? {} : { file: 'data:image/png;base64,' + $json.imageBase64, api_key: '723949127319764', timestamp: $json.cloudTs, signature: $json.cloudSig, folder: 'amigurumi/gemini' } }}",
+        "jsonBody": "={{ { file: 'data:image/png;base64,' + $json.imageBase64, api_key: '723949127319764', timestamp: $json.cloudTs, signature: $json.cloudSig, folder: 'amigurumi/gemini' } }}",
         "options": { "timeout": 60000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1300, 300],
+      "position": [1520, 200],
       "id": "n6",
       "name": "Cloudinary Upload",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const uploadResults = $input.all();\nconst prepItems = $('Prep Upload').all();\nconst images = [];\nlet title = '', description = '', tags = [], productId = '', callbackUrl = '', secret = '';\nfor (let i = 0; i < prepItems.length; i++) {\n  const prep = prepItems[i].json;\n  const upload = uploadResults[i]?.json;\n  if (!productId) { title = prep.title || ''; description = prep.description || ''; tags = prep.tags || []; productId = prep.productId; callbackUrl = prep.callbackUrl; secret = prep.secret; }\n  if (upload?.secure_url) { images.push({ url: upload.secure_url, backgroundId: prep.backgroundId, backgroundLabel: prep.backgroundLabel }); }\n}\nif (!callbackUrl) { const f = prepItems[0]?.json || {}; callbackUrl = f.callbackUrl; secret = f.secret; productId = f.productId; }\nreturn [{ json: { callbackUrl, callbackBody: { secret, type: 'generate-result', productId, images, title, description, tags } } }];"
+        "jsCode": "const uploadResults = $('Cloudinary Upload').all();\nconst prepItems = $('Prep Upload').all().filter(i => !i.json.noImages);\nconst noImageItems = $('Prep Upload').all().filter(i => i.json.noImages);\nconst images = [];\nlet title = '', description = '', tags = [], productId = '', callbackUrl = '', secret = '';\n\n// Process uploaded images\nfor (let i = 0; i < prepItems.length; i++) {\n  const prep = prepItems[i].json;\n  const upload = uploadResults[i]?.json;\n  if (!productId) { title = prep.title || ''; description = prep.description || ''; tags = prep.tags || []; productId = prep.productId; callbackUrl = prep.callbackUrl; secret = prep.secret; }\n  if (upload?.secure_url) { images.push({ url: upload.secure_url, backgroundId: prep.backgroundId, backgroundLabel: prep.backgroundLabel }); }\n}\n\n// Fallback from noImages path\nif (!callbackUrl && noImageItems.length > 0) {\n  const f = noImageItems[0].json;\n  callbackUrl = f.callbackUrl; secret = f.secret; productId = f.productId;\n  title = f.title || ''; description = f.description || ''; tags = f.tags || [];\n}\n\nif (!callbackUrl) {\n  const f = $('Fan Out').first()?.json || {};\n  callbackUrl = f.callbackUrl; secret = f.secret; productId = f.productId;\n}\n\nreturn [{ json: { callbackUrl, callbackBody: { secret, type: 'generate-result', productId, images, title, description, tags } } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 300],
+      "position": [1740, 300],
       "id": "n7",
       "name": "Aggregate"
     },
@@ -102,7 +123,7 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1740, 300],
+      "position": [1960, 300],
       "id": "n8",
       "name": "Send Callback"
     }
@@ -112,7 +133,13 @@
     "GPT Content": { "main": [[{ "node": "Fan Out", "type": "main", "index": 0 }]] },
     "Fan Out": { "main": [[{ "node": "Gemini via Proxy", "type": "main", "index": 0 }]] },
     "Gemini via Proxy": { "main": [[{ "node": "Prep Upload", "type": "main", "index": 0 }]] },
-    "Prep Upload": { "main": [[{ "node": "Cloudinary Upload", "type": "main", "index": 0 }]] },
+    "Prep Upload": { "main": [[{ "node": "Has Images?", "type": "main", "index": 0 }]] },
+    "Has Images?": {
+      "main": [
+        [{ "node": "Cloudinary Upload", "type": "main", "index": 0 }],
+        [{ "node": "Aggregate", "type": "main", "index": 0 }]
+      ]
+    },
     "Cloudinary Upload": { "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]] },
     "Aggregate": { "main": [[{ "node": "Send Callback", "type": "main", "index": 0 }]] }
   },
