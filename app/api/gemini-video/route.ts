@@ -9,7 +9,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productId, prompt } = body;
+    const { productId, prompt, imageUrl } = body;
 
     if (!productId) {
       return NextResponse.json({ error: 'productId required' }, { status: 400 });
@@ -26,10 +26,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // Referans gorseli indir ve base64 yap
-    const imgRes = await fetch(product.referenceImageUrl);
+    // Gorsel indir: ozel gorsel varsa onu, yoksa referans gorseli kullan
+    const targetImageUrl = imageUrl || product.referenceImageUrl;
+    const imgRes = await fetch(targetImageUrl);
     if (!imgRes.ok) {
-      return NextResponse.json({ error: 'Referans gorsel indirilemedi' }, { status: 500 });
+      return NextResponse.json({ error: 'Gorsel indirilemedi' }, { status: 500 });
     }
     const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
     const imgBase64 = imgBuffer.toString('base64');

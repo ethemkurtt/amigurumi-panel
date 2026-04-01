@@ -58,6 +58,8 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [videoGenerating, setVideoGenerating] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [videoOperationName, setVideoOperationName] = useState('');
+  const [videoImageUrl, setVideoImageUrl] = useState('');
+  const [videoImageUploading, setVideoImageUploading] = useState(false);
 
   // ZIP download
   const [zipLoading, setZipLoading] = useState(false);
@@ -166,7 +168,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
       const res = await fetch('/api/gemini-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product._id }),
+        body: JSON.stringify({ productId: product._id, imageUrl: videoImageUrl || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Video baslatilamadi');
@@ -416,15 +418,71 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                     </div>
                   </>
                 ) : (
-                  <>
-                    <div className="text-6xl">🎥</div>
+                  <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold text-white">360 Urun Videosu</h3>
-                      <p className="text-white/40 text-sm mt-2 max-w-md mx-auto">
-                        Referans gorselinizden profesyonel bir studio ortaminda 360 derece donen urun videosu olusturun.
-                        Beyaz arka plan, yumusak isik, doner stand.
+                      <p className="text-white/40 text-sm mt-2">
+                        Profesyonel studio ortaminda 360 derece donen urun videosu olusturun.
                       </p>
                     </div>
+
+                    {/* Gorsel Yukleme / Secim */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-5 text-left space-y-4">
+                      <label className="text-sm font-medium text-white/80">Video icin Gorsel</label>
+
+                      {/* Onizleme */}
+                      {(videoImageUrl || product.referenceImageUrl) && (
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={videoImageUrl || product.referenceImageUrl}
+                            alt="Video gorseli"
+                            className="w-24 h-24 object-cover rounded-xl border border-white/20"
+                          />
+                          <div className="text-xs text-white/50">
+                            {videoImageUrl ? 'Yuklenen gorsel kullanilacak' : 'Referans gorsel kullanilacak (varsayilan)'}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Upload alani */}
+                      <div className="flex gap-3 items-center">
+                        <label className="cursor-pointer flex items-center gap-2 bg-white/5 border border-white/15 hover:border-purple-400/50 rounded-xl px-4 py-2.5 text-sm text-white/70 transition-all">
+                          {videoImageUploading ? (
+                            <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Yukleniyor...</>
+                          ) : (
+                            'Farkli Gorsel Yukle'
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={videoImageUploading}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setVideoImageUploading(true);
+                              try {
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                                const data = await res.json();
+                                if (res.ok) setVideoImageUrl(data.url);
+                              } catch { setVideoError('Gorsel yuklenemedi'); }
+                              finally { setVideoImageUploading(false); }
+                            }}
+                          />
+                        </label>
+                        {videoImageUrl && (
+                          <button
+                            onClick={() => setVideoImageUrl('')}
+                            className="text-xs text-red-400 hover:text-red-300"
+                          >
+                            Kaldir (referans kullan)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     <button
                       onClick={handleGenerateVideo}
                       disabled={videoGenerating}
@@ -432,7 +490,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
                     >
                       Video Uret
                     </button>
-                  </>
+                  </div>
                 )}
 
                 {videoError && (
