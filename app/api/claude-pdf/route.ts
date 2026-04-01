@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { Product } from '@/models/Product';
-import { uploadPdfBuffer } from '@/lib/cloudinary';
 
 export const maxDuration = 120;
 
@@ -136,19 +135,16 @@ Return ONLY the edited document content.`,
 
     // Duzenlenmis icerigi PDF'e cevir
     const pdfBytes = await generatePdfFromText(editedContent, product.name);
+    const processedPdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
-    // Cloudinary'ye yukle
-    const processedUrl = await uploadPdfBuffer(Buffer.from(pdfBytes), 'amigurumi/pdfs-processed');
-
-    // Product'i guncelle
+    // Product'i guncelle (base64 MongoDB'de, Cloudinary'ye gerek yok)
     await Product.findByIdAndUpdate(productId, {
-      processedPdfUrl: processedUrl,
+      processedPdfBase64,
       pdfPrompt: prompt,
     });
 
     return NextResponse.json({
       success: true,
-      processedPdfUrl: processedUrl,
       editedContent: editedContent.substring(0, 500) + '...',
     });
   } catch (error) {

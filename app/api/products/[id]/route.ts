@@ -9,9 +9,15 @@ export async function GET(
   try {
     await connectDB();
     const { id } = await params;
-    const product = await Product.findById(id).select('-originalPdfBase64 -processedPdfBase64').lean();
+    const product = await Product.findById(id).lean();
     if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ product });
+    // base64 data'yi dondurme ama varligini belirt
+    const p = product as Record<string, unknown>;
+    const hasOriginalPdf = !!p.originalPdfBase64;
+    const hasProcessedPdf = !!p.processedPdfBase64;
+    delete p.originalPdfBase64;
+    delete p.processedPdfBase64;
+    return NextResponse.json({ product: { ...p, originalPdfBase64: hasOriginalPdf, hasProcessedPdf } });
   } catch (error) {
     console.error('GET /api/products/[id] error:', error);
     return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });

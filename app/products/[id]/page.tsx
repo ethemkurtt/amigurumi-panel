@@ -23,7 +23,9 @@ interface Product {
   tags: string[];
   status: 'draft' | 'generating' | 'completed';
   originalPdfUrl?: string;
+  originalPdfBase64?: boolean;
   processedPdfUrl?: string;
+  hasProcessedPdf?: boolean;
   pdfPrompt?: string;
   pdfUrl?: string;
   lastError?: string;
@@ -164,7 +166,10 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const geminiImages = product.generatedImages || [];
   const tagList = tagsInput.split(',').map((t) => t.trim()).filter(Boolean);
   const totalImages = geminiImages.length;
-  const hasPdf = !!product.originalPdfUrl;
+  const hasPdf = !!product.originalPdfUrl || !!product.originalPdfBase64;
+  const hasProcessedPdf = !!product.hasProcessedPdf;
+  const originalPdfServeUrl = `/api/serve-pdf?productId=${product._id}&type=original`;
+  const processedPdfServeUrl = `/api/serve-pdf?productId=${product._id}&type=processed`;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -295,19 +300,19 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
               {/* Original PDF */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-white">📄 Orijinal PDF</h3>
+                  <h3 className="text-sm font-semibold text-white">Orijinal PDF</h3>
                   <a
-                    href={product.originalPdfUrl}
+                    href={originalPdfServeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
                   >
-                    ⬇️ Indir
+                    Indir
                   </a>
                 </div>
                 <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden" style={{ height: 500 }}>
                   <iframe
-                    src={`${product.originalPdfUrl}#toolbar=0`}
+                    src={`${originalPdfServeUrl}#toolbar=0`}
                     className="w-full h-full"
                     title="Original PDF"
                   />
@@ -318,24 +323,24 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-white">
-                    {product.processedPdfUrl ? '✅ Duzenlenmis PDF' : '🤖 Claude ile Duzenle'}
+                    {hasProcessedPdf ? 'Duzenlenmis PDF' : 'Claude ile Duzenle'}
                   </h3>
-                  {product.processedPdfUrl && (
+                  {hasProcessedPdf && (
                     <a
-                      href={product.processedPdfUrl}
+                      href={processedPdfServeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
                     >
-                      ⬇️ Indir
+                      Indir
                     </a>
                   )}
                 </div>
 
-                {product.processedPdfUrl ? (
+                {hasProcessedPdf ? (
                   <div className="bg-white/5 border border-green-500/20 rounded-2xl overflow-hidden" style={{ height: 500 }}>
                     <iframe
-                      src={`${product.processedPdfUrl}#toolbar=0`}
+                      src={`${processedPdfServeUrl}#toolbar=0`}
                       className="w-full h-full"
                       title="Processed PDF"
                     />
