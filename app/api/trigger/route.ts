@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { Product } from '@/models/Product';
+import { Settings } from '@/models/Settings';
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,6 +16,12 @@ export async function POST(req: NextRequest) {
     const product = await Product.findById(productId);
     if (!product) {
       return NextResponse.json({ error: 'Ürün bulunamadı' }, { status: 404 });
+    }
+
+    // Ayarlari MongoDB'den cek
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
     }
 
     // Pick the right n8n webhook URL
@@ -36,10 +43,20 @@ export async function POST(req: NextRequest) {
       type,
       productId: product._id.toString(),
       productName: product.name,
+      productSize: product.size || settings.defaultSize || '25',
       referenceImageUrl: product.referenceImageUrl,
       backgroundIds: backgroundIds || [],
       concepts: concepts || [],
       promptOptions: promptOptions || {},
+      // Ayarlardan gelen sablonlar
+      settings: {
+        titleTemplate: settings.titleTemplate,
+        descriptionTemplate: settings.descriptionTemplate,
+        defaultTags: settings.defaultTags,
+        promptRules: settings.promptRules,
+        defaultStyle: settings.defaultStyle,
+        shopName: settings.shopName,
+      },
       // n8n'in sonuclari geri gonderecegi URL
       callbackUrl: `${req.nextUrl.origin}/api/webhook/n8n`,
       // Mevcut urun bilgileri (PDF icin)
