@@ -15,6 +15,7 @@ export const BACKGROUND_CATEGORIES = [
   { id: 'study', label: 'Calisma Odasi', emoji: '📚' },
   { id: 'cozy', label: 'Ev Kosesi', emoji: '🕯️' },
   { id: 'general', label: 'Ev Genel', emoji: '🏠' },
+  { id: 'garden', label: 'Bahce & Doga', emoji: '🌿' },
 ];
 
 export const BACKGROUND_PRESETS: BackgroundPreset[] = [
@@ -73,6 +74,20 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
   { id: 'home-floor', label: 'Ev Zemini', emoji: '🟫', category: 'general', prompt: 'Place the amigurumi toy on a clean hardwood floor in a bright home. Furniture blurred in background, natural light.' },
   { id: 'home-radiator', label: 'Kalorifer Ustu', emoji: '♨️', category: 'general', prompt: 'Place the amigurumi toy on top of a radiator shelf cover near a window. Warm cozy home winter feeling.' },
   { id: 'home-bathroom-shelf', label: 'Banyo Rafi', emoji: '🛁', category: 'general', prompt: 'Place the amigurumi toy on a white bathroom shelf next to fluffy towels. Clean bright spa-like atmosphere.' },
+
+  // ── Bahce & Doga ──
+  { id: 'garden-grass', label: 'Cimen Ustu', emoji: '🌱', category: 'garden', prompt: 'Place the amigurumi toy on fresh green grass in a sunny garden. Soft natural daylight, wildflowers blurred in background, spring atmosphere.' },
+  { id: 'garden-forest', label: 'Orman', emoji: '🌲', category: 'garden', prompt: 'Place the amigurumi toy on soft moss in a magical forest floor. Dappled sunlight filtering through trees, ferns and mushrooms blurred in background, enchanted fairy tale atmosphere.' },
+  { id: 'garden-home', label: 'Ev Bahcesi', emoji: '🏡', category: 'garden', prompt: 'Place the amigurumi toy on a wooden garden table in a beautiful home backyard garden. Blooming flowers, green plants, warm sunny afternoon light.' },
+  { id: 'garden-playground', label: 'Oyun Bahcesi', emoji: '🎠', category: 'garden', prompt: 'Place the amigurumi toy on a colorful playground surface in a kids outdoor play area. Slides and swings blurred in background, bright cheerful sunny day.' },
+  { id: 'garden-picnic', label: 'Piknik', emoji: '🧺', category: 'garden', prompt: 'Place the amigurumi toy on a checkered picnic blanket on green grass in a park. Picnic basket and fruits blurred nearby, warm golden hour sunlight.' },
+  { id: 'garden-flower-bed', label: 'Cicek Tarhasi', emoji: '🌸', category: 'garden', prompt: 'Place the amigurumi toy among colorful blooming flowers in a garden flower bed. Roses, tulips, daisies blurred around, soft natural light, dreamy spring garden.' },
+  { id: 'garden-bench', label: 'Bahce Banki', emoji: '🪑', category: 'garden', prompt: 'Place the amigurumi toy on a rustic wooden garden bench surrounded by green plants and climbing vines. Peaceful sunny garden atmosphere.' },
+  { id: 'garden-path', label: 'Bahce Yolu', emoji: '🛤️', category: 'garden', prompt: 'Place the amigurumi toy on a stone garden path with lush green plants on both sides. Soft sunlight, cottage garden feel.' },
+  { id: 'garden-tree-stump', label: 'Agac Kutugu', emoji: '🪵', category: 'garden', prompt: 'Place the amigurumi toy sitting on a tree stump in a garden clearing. Surrounded by green leaves and small wildflowers, warm dappled sunlight.' },
+  { id: 'garden-balcony', label: 'Balkon', emoji: '🌺', category: 'garden', prompt: 'Place the amigurumi toy on a small balcony table with potted plants and flowers. City skyline blurred in background, golden hour light.' },
+  { id: 'garden-swing', label: 'Bahce Salincagi', emoji: '🎋', category: 'garden', prompt: 'Place the amigurumi toy on a cute wooden garden swing decorated with flowers. Green garden blurred behind, soft sunny light, whimsical fairy tale feel.' },
+  { id: 'garden-pond', label: 'Bahce Havuzu', emoji: '🐸', category: 'garden', prompt: 'Place the amigurumi toy next to a small decorative garden pond with water lilies. Lush greenery around, peaceful zen garden atmosphere, soft natural light.' },
 ];
 
 export const getPresetById = (id: string) =>

@@ -1,18 +1,18 @@
 {
-  "name": "Amigurumi Generate v3",
+  "name": "Amigurumi Generate - Gemini",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "amigurumi-generate",
-        "responseMode": "onReceived",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [200, 300],
-      "id": "n1",
-      "name": "Webhook"
+      "position": [0, 0],
+      "id": "70704e77-c194-416e-90d7-eb8bf02e7fd5",
+      "name": "Webhook",
+      "webhookId": "89219d59-c3fc-4d9b-9582-d9c324dc4a4b"
     },
     {
       "parameters": {
@@ -25,52 +25,59 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [420, 300],
-      "id": "n2",
+      "position": [224, 0],
+      "id": "0d8b1378-5ffa-4c31-ad4d-7449a2e07e44",
       "name": "GPT Content"
     },
     {
       "parameters": {
-        "jsCode": "const gptResponse = $('GPT Content').first().json;\nconst webhookData = $('Webhook').first().json.body;\n\nconst title = gptResponse.title || webhookData.productName || 'Amigurumi';\nconst description = gptResponse.description || '';\nconst tags = gptResponse.tags || [];\n\nconst PRESETS = {\n  'living-sofa': { label: 'Kanepe Ustu', prompt: 'on a cozy beige sofa in a modern living room. Soft cushions, warm ambient lighting.' },\n  'living-armchair': { label: 'Koltuk Ustu', prompt: 'on a comfortable armchair in a stylish living room. Warm reading lamp light.' },\n  'living-rug': { label: 'Salon Halisi', prompt: 'on a soft fluffy rug in a bright living room. Warm natural light from windows.' },\n  'living-coffee-table': { label: 'Sehpa Ustu', prompt: 'on a round wooden coffee table in a living room. Coffee cup nearby, cozy.' },\n  'living-tv-unit': { label: 'TV Unitesi', prompt: 'on a modern TV unit shelf in a living room. Clean lines, warm ambient light.' },\n  'living-cushion': { label: 'Yastik Yaninda', prompt: 'leaning against a decorative cushion on a sofa. Soft cozy living room.' },\n  'bed-white': { label: 'Beyaz Yatak', prompt: 'on a neatly made bed with white soft bedding. Soft morning light.' },\n  'bed-colorful': { label: 'Renkli Yatak', prompt: 'on a colorful patterned bedspread. Bright cheerful bedroom.' },\n  'nightstand': { label: 'Komodin Ustu', prompt: 'on a bedroom nightstand next to a soft glowing lamp. Evening atmosphere.' },\n  'bed-pillow': { label: 'Yastik Ustu', prompt: 'resting on a fluffy white pillow on a bed. Dreamy morning light.' },\n  'bedroom-shelf': { label: 'Yatak Odasi Rafi', prompt: 'on a bedroom floating shelf with decorative items. Warm room.' },\n  'baby-crib': { label: 'Besik Yaninda', prompt: 'next to a white baby crib in a pastel nursery. Gentle lighting, dreamy.' },\n  'baby-changing': { label: 'Bakim Masasi', prompt: 'on a baby changing table in a pastel nursery. Baby accessories nearby.' },\n  'baby-rocker': { label: 'Sallanan Koltuk', prompt: 'on a nursing rocking chair in a baby room. Pastel tones, peaceful.' },\n  'baby-blanket': { label: 'Bebek Battaniyesi', prompt: 'on a soft baby blanket on the nursery floor. Pastel colors.' },\n  'baby-shelf': { label: 'Bebek Rafi', prompt: 'on a baby room wall shelf with small stuffed animals. Pastel decor.' },\n  'kids-carpet': { label: 'Cocuk Halisi', prompt: 'on a colorful carpet in a bright childrens room. Toys in soft bokeh.' },\n  'kids-playroom': { label: 'Oyun Alani', prompt: 'in a bright playroom surrounded by blurred colorful toys.' },\n  'kids-desk': { label: 'Cocuk Masasi', prompt: 'on a childs desk with colorful pencils and books blurred.' },\n  'kids-tent': { label: 'Oyun Cadiri', prompt: 'at the entrance of a cute indoor play tent with fairy lights.' },\n  'kids-shelf': { label: 'Oyuncak Rafi', prompt: 'on a wooden kids shelf with other toys blurred behind.' },\n  'kids-bed': { label: 'Cocuk Yatagi', prompt: 'on a colorful kids bed with cartoon bedding. Cheerful room.' },\n  'kitchen-marble': { label: 'Mermer Tezgah', prompt: 'on a clean white marble kitchen counter. Modern kitchen, warm light.' },\n  'kitchen-wooden': { label: 'Ahsap Tezgah', prompt: 'on a warm wooden kitchen counter. Rustic farmhouse kitchen.' },\n  'dining-table': { label: 'Yemek Masasi', prompt: 'on a wooden dining table in a bright minimalist home.' },\n  'breakfast-table': { label: 'Kahvalti Masasi', prompt: 'on a breakfast table with coffee blurred in background. Morning.' },\n  'study-desk': { label: 'Calisma Masasi', prompt: 'on a clean modern study desk. Minimalist workspace, bright light.' },\n  'study-bookshelf': { label: 'Kitaplik', prompt: 'in front of a cozy bookshelf with colorful books. Warm lighting.' },\n  'study-shelf': { label: 'Duvar Rafi', prompt: 'on a modern floating wall shelf in a study. Clean lines.' },\n  'fireplace': { label: 'Somine Onu', prompt: 'on a cozy rug in front of a warm fireplace. Golden glow, knit blanket.' },\n  'window-sill': { label: 'Pencere Kenari', prompt: 'on a bright window sill with natural daylight streaming in.' },\n  'reading-nook': { label: 'Okuma Kosesi', prompt: 'in a cozy reading nook with cushions and throw blanket. Fairy lights.' },\n  'candle-setup': { label: 'Mum Isigi', prompt: 'surrounded by soft glowing candles. Warm intimate atmosphere.' },\n  'knit-blanket': { label: 'Orgu Battaniye', prompt: 'on a soft chunky knit blanket. Cozy hygge atmosphere.' },\n  'home-entrance': { label: 'Giris Holu', prompt: 'on a console table in a home entrance hallway. Mirror blurred behind.' },\n  'home-stairs': { label: 'Merdiven', prompt: 'sitting on a wooden staircase step in a cozy home. Warm lighting.' },\n  'home-random': { label: 'Ev Rastgele', prompt: 'in a random cozy spot inside a beautiful home. Warm lighting.' },\n  'home-floor': { label: 'Ev Zemini', prompt: 'on a clean hardwood floor. Furniture blurred, natural light.' },\n  'home-radiator': { label: 'Kalorifer Ustu', prompt: 'on a radiator shelf cover near a window. Warm winter feeling.' },\n  'home-bathroom-shelf': { label: 'Banyo Rafi', prompt: 'on a white bathroom shelf next to fluffy towels. Clean bright.' }\n};\n\nconst SD = { 'simple': 'Very clean simple scene, minimal props.', 'medium': '', 'detailed': 'Rich detailed scene with many props and decorations.' };\nconst CD = { 'close': 'Close-up shot, toy fills most of frame.', 'medium': '', 'far': 'Wide shot showing full room, toy smaller in frame.' };\nconst TS = { 'small': 'Toy appears small in scene.', 'medium': '', 'large': 'Toy is prominently large in frame.' };\nconst CA = { 'front': 'Straight front view.', 'front-45': '45-degree front angle.', 'side': 'Side angle.', 'top': 'Top-down view.', 'low': 'Low angle looking up.' };\nconst TP = { 'keep': '', 'sitting': 'Toy in cute sitting position.', 'standing': 'Toy standing upright.', 'lying': 'Toy lying on its side.', 'tilted': 'Toy slightly tilted playfully.' };\n\nconst opts = webhookData.promptOptions || {};\nconst extraNotes = opts.extraNotes ? ' ' + opts.extraNotes : '';\nconst sett = webhookData.settings || {};\nconst promptRules = sett.promptRules || 'Keep the amigurumi toy EXACTLY as it is. Only change the background. Professional Etsy product photography.';\nconst proxyUrl = webhookData.callbackUrl.replace('/api/webhook/n8n', '/api/gemini-image');\nconst imageUrl = webhookData.referenceImageUrl;\nconst concepts = webhookData.concepts || [];\nconst items = [];\n\nfor (const concept of concepts) {\n  const bgId = concept.backgroundId;\n  const variants = concept.variants || [concept.variant || {}];\n  const preset = PRESETS[bgId];\n  if (!preset) continue;\n\n  for (let vi = 0; vi < variants.length; vi++) {\n    const v = variants[vi];\n    const variantParts = [\n      SD[v.sceneDetail] || '',\n      CD[v.cameraDistance] || '',\n      TS[v.toySize] || '',\n      CA[v.cameraAngle] || CA['front-45'],\n      TP[v.toyPose] || ''\n    ].filter(Boolean).join(' ');\n\n    const variationHint = variants.length > 1 ? ' Create a unique variation (variation ' + (vi+1) + ' of ' + variants.length + '), slightly different composition and exact placement.' : '';\n\n    const fullPrompt = 'Edit this image: Remove the background and place the amigurumi toy ' + preset.prompt + ' ' + variantParts + ' ' + promptRules + variationHint + extraNotes;\n\n    items.push({ json: { proxyUrl, imageUrl, prompt: fullPrompt, backgroundId: bgId, backgroundLabel: preset.label + (variants.length > 1 ? ' #' + (vi+1) : ''), title, description, tags, productId: webhookData.productId, callbackUrl: webhookData.callbackUrl, secret: webhookData.secret } });\n  }\n}\n\nif (items.length === 0) throw new Error('No valid concepts');\nreturn items;"
+        "method": "POST",
+        "url": "={{ $('Webhook').first().json.body.callbackUrl.replace('/api/webhook/n8n', '/api/image-to-base64') }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { imageUrl: $('Webhook').first().json.body.referenceImageUrl, secret: $('Webhook').first().json.body.secret } }}",
+        "options": { "timeout": 30000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [448, 0],
+      "id": "209a649c-b069-4b67-a013-88edb3161435",
+      "name": "Get Base64"
+    },
+    {
+      "parameters": {
+        "jsCode": "const gptResponse = $('GPT Content').first().json;\nconst webhookData = $('Webhook').first().json.body;\nconst base64Data = $('Get Base64').first().json;\n\nconst title = gptResponse.title || webhookData.productName || 'Amigurumi';\nconst description = gptResponse.description || '';\nconst tags = gptResponse.tags || [];\n\nconst PRESETS = {\n  'living-sofa': { label: 'Kanepe Ustu', prompt: 'on a cozy beige sofa in a modern living room. Soft cushions, warm ambient lighting.' },\n  'living-armchair': { label: 'Koltuk Ustu', prompt: 'on a comfortable armchair in a stylish living room. Warm reading lamp light.' },\n  'living-rug': { label: 'Salon Halisi', prompt: 'on a soft fluffy rug in a bright living room. Warm natural light from windows.' },\n  'living-coffee-table': { label: 'Sehpa Ustu', prompt: 'on a round wooden coffee table in a living room. Coffee cup nearby, cozy.' },\n  'living-tv-unit': { label: 'TV Unitesi', prompt: 'on a modern TV unit shelf in a living room. Clean lines, warm ambient light.' },\n  'living-cushion': { label: 'Yastik Yaninda', prompt: 'leaning against a decorative cushion on a sofa. Soft cozy living room.' },\n  'bed-white': { label: 'Beyaz Yatak', prompt: 'on a neatly made bed with white soft bedding. Soft morning light.' },\n  'bed-colorful': { label: 'Renkli Yatak', prompt: 'on a colorful patterned bedspread. Bright cheerful bedroom.' },\n  'nightstand': { label: 'Komodin Ustu', prompt: 'on a bedroom nightstand next to a soft glowing lamp. Evening atmosphere.' },\n  'bed-pillow': { label: 'Yastik Ustu', prompt: 'resting on a fluffy white pillow on a bed. Dreamy morning light.' },\n  'bedroom-shelf': { label: 'Yatak Odasi Rafi', prompt: 'on a bedroom floating shelf with decorative items. Warm room.' },\n  'baby-crib': { label: 'Besik Yaninda', prompt: 'next to a white baby crib in a pastel nursery. Gentle lighting, dreamy.' },\n  'baby-changing': { label: 'Bakim Masasi', prompt: 'on a baby changing table in a pastel nursery. Baby accessories nearby.' },\n  'baby-rocker': { label: 'Sallanan Koltuk', prompt: 'on a nursing rocking chair in a baby room. Pastel tones, peaceful.' },\n  'baby-blanket': { label: 'Bebek Battaniyesi', prompt: 'on a soft baby blanket on the nursery floor. Pastel colors.' },\n  'baby-shelf': { label: 'Bebek Rafi', prompt: 'on a baby room wall shelf with small stuffed animals. Pastel decor.' },\n  'kids-carpet': { label: 'Cocuk Halisi', prompt: 'on a colorful carpet in a bright childrens room. Toys in soft bokeh.' },\n  'kids-playroom': { label: 'Oyun Alani', prompt: 'in a bright playroom surrounded by blurred colorful toys.' },\n  'kids-desk': { label: 'Cocuk Masasi', prompt: 'on a childs desk with colorful pencils and books blurred.' },\n  'kids-tent': { label: 'Oyun Cadiri', prompt: 'at the entrance of a cute indoor play tent with fairy lights.' },\n  'kids-shelf': { label: 'Oyuncak Rafi', prompt: 'on a wooden kids shelf with other toys blurred behind.' },\n  'kids-bed': { label: 'Cocuk Yatagi', prompt: 'on a colorful kids bed with cartoon bedding. Cheerful room.' },\n  'kitchen-marble': { label: 'Mermer Tezgah', prompt: 'on a clean white marble kitchen counter. Modern kitchen, warm light.' },\n  'kitchen-wooden': { label: 'Ahsap Tezgah', prompt: 'on a warm wooden kitchen counter. Rustic farmhouse kitchen.' },\n  'dining-table': { label: 'Yemek Masasi', prompt: 'on a wooden dining table in a bright minimalist home.' },\n  'breakfast-table': { label: 'Kahvalti Masasi', prompt: 'on a breakfast table with coffee blurred in background. Morning.' },\n  'study-desk': { label: 'Calisma Masasi', prompt: 'on a clean modern study desk. Minimalist workspace, bright light.' },\n  'study-bookshelf': { label: 'Kitaplik', prompt: 'in front of a cozy bookshelf with colorful books. Warm lighting.' },\n  'study-shelf': { label: 'Duvar Rafi', prompt: 'on a modern floating wall shelf in a study. Clean lines.' },\n  'fireplace': { label: 'Somine Onu', prompt: 'on a cozy rug in front of a warm fireplace. Golden glow, knit blanket.' },\n  'window-sill': { label: 'Pencere Kenari', prompt: 'on a bright window sill with natural daylight streaming in.' },\n  'reading-nook': { label: 'Okuma Kosesi', prompt: 'in a cozy reading nook with cushions and throw blanket. Fairy lights.' },\n  'candle-setup': { label: 'Mum Isigi', prompt: 'surrounded by soft glowing candles. Warm intimate atmosphere.' },\n  'knit-blanket': { label: 'Orgu Battaniye', prompt: 'on a soft chunky knit blanket. Cozy hygge atmosphere.' },\n  'home-entrance': { label: 'Giris Holu', prompt: 'on a console table in a home entrance hallway. Mirror blurred behind.' },\n  'home-stairs': { label: 'Merdiven', prompt: 'sitting on a wooden staircase step in a cozy home. Warm lighting.' },\n  'home-random': { label: 'Ev Rastgele', prompt: 'in a random cozy spot inside a beautiful home. Warm lighting.' },\n  'home-floor': { label: 'Ev Zemini', prompt: 'on a clean hardwood floor. Furniture blurred, natural light.' },\n  'home-radiator': { label: 'Kalorifer Ustu', prompt: 'on a radiator shelf cover near a window. Warm winter feeling.' },\n  'home-bathroom-shelf': { label: 'Banyo Rafi', prompt: 'on a white bathroom shelf next to fluffy towels. Clean bright.' },\n  'garden-grass': { label: 'Cimen Ustu', prompt: 'on fresh green grass in a sunny garden. Wildflowers blurred in background, spring atmosphere.' },\n  'garden-forest': { label: 'Orman', prompt: 'on soft moss in a magical forest floor. Dappled sunlight through trees, ferns and mushrooms blurred, enchanted fairy tale.' },\n  'garden-home': { label: 'Ev Bahcesi', prompt: 'on a wooden garden table in a beautiful home backyard. Blooming flowers, green plants, warm sunny afternoon.' },\n  'garden-playground': { label: 'Oyun Bahcesi', prompt: 'on a colorful playground surface in a kids outdoor play area. Slides and swings blurred, bright sunny day.' },\n  'garden-picnic': { label: 'Piknik', prompt: 'on a checkered picnic blanket on green grass in a park. Picnic basket blurred nearby, golden hour sunlight.' },\n  'garden-flower-bed': { label: 'Cicek Tarhasi', prompt: 'among colorful blooming flowers in a garden flower bed. Roses, tulips, daisies blurred around, dreamy spring garden.' },\n  'garden-bench': { label: 'Bahce Banki', prompt: 'on a rustic wooden garden bench surrounded by green plants and climbing vines. Peaceful sunny garden.' },\n  'garden-path': { label: 'Bahce Yolu', prompt: 'on a stone garden path with lush green plants on both sides. Soft sunlight, cottage garden feel.' },\n  'garden-tree-stump': { label: 'Agac Kutugu', prompt: 'sitting on a tree stump in a garden clearing. Green leaves and wildflowers around, warm dappled sunlight.' },\n  'garden-balcony': { label: 'Balkon', prompt: 'on a small balcony table with potted plants and flowers. City skyline blurred, golden hour light.' },\n  'garden-swing': { label: 'Bahce Salincagi', prompt: 'on a cute wooden garden swing decorated with flowers. Green garden blurred behind, whimsical fairy tale feel.' },\n  'garden-pond': { label: 'Bahce Havuzu', prompt: 'next to a small decorative garden pond with water lilies. Lush greenery, peaceful zen garden atmosphere.' }\n};\n\nconst SD = { 'simple': 'Very clean simple scene, minimal props.', 'medium': '', 'detailed': 'Rich detailed scene with many props and decorations.' };\nconst CD = { 'close': 'Close-up shot, toy fills most of frame.', 'medium': '', 'far': 'Wide shot showing full room, toy smaller in frame.' };\nconst TS = { 'small': 'Toy appears small in scene.', 'medium': '', 'large': 'Toy is prominently large in frame.' };\nconst CA = { 'front': 'Straight front view.', 'front-45': '45-degree front angle.', 'side': 'Side angle.', 'top': 'Top-down view.', 'low': 'Low angle looking up.' };\nconst TP = { 'keep': '', 'sitting': 'Toy in cute sitting position.', 'standing': 'Toy standing upright.', 'lying': 'Toy lying on its side.', 'tilted': 'Toy slightly tilted playfully.' };\n\nconst opts = webhookData.promptOptions || {};\nconst extraNotes = opts.extraNotes ? ' ' + opts.extraNotes : '';\nconst sett = webhookData.settings || {};\nconst promptRules = sett.promptRules || 'Keep the amigurumi toy EXACTLY as it is. Only change the background. Professional Etsy product photography.';\nconst concepts = webhookData.concepts || [];\nconst items = [];\n\nfor (const concept of concepts) {\n  const bgId = concept.backgroundId;\n  const variants = concept.variants || [concept.variant || {}];\n  const preset = PRESETS[bgId];\n  if (!preset) continue;\n\n  for (let vi = 0; vi < variants.length; vi++) {\n    const v = variants[vi];\n    const variantParts = [\n      SD[v.sceneDetail] || '',\n      CD[v.cameraDistance] || '',\n      TS[v.toySize] || '',\n      CA[v.cameraAngle] || CA['front-45'],\n      TP[v.toyPose] || ''\n    ].filter(Boolean).join(' ');\n\n    const variationHint = variants.length > 1 ? ' Create a unique variation (variation ' + (vi+1) + ' of ' + variants.length + '), slightly different composition and exact placement.' : '';\n\n    const fullPrompt = 'Edit this image: Remove the background and place the amigurumi toy ' + preset.prompt + ' ' + variantParts + ' ' + promptRules + variationHint + extraNotes;\n\n    items.push({ json: { imageBase64: base64Data.base64, prompt: fullPrompt, backgroundId: bgId, backgroundLabel: preset.label + (variants.length > 1 ? ' #' + (vi+1) : ''), title, description, tags, productId: webhookData.productId, callbackUrl: webhookData.callbackUrl, secret: webhookData.secret } });\n  }\n}\n\nif (items.length === 0) throw new Error('No valid concepts');\nreturn items;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [640, 300],
-      "id": "n3",
+      "position": [672, 0],
+      "id": "1ca26bf2-965e-44e1-a14c-b0f69f8e01c0",
       "name": "Fan Out"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.proxyUrl }}",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=AIzaSyDTKUWJV6qPzp1ZI-FUl1Nm3kQt7_VLvMA",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { secret: $json.secret, imageUrl: $json.imageUrl, prompt: $json.prompt } }}",
-        "options": {
-          "timeout": 120000,
-          "batching": {
-            "batch": {
-              "batchSize": 1,
-              "batchInterval": 10000
-            }
-          }
-        }
+        "jsonBody": "={{ { contents: [{ parts: [{ inlineData: { mimeType: 'image/png', data: $json.imageBase64 } }, { text: $json.prompt }] }], generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } } }}",
+        "options": { "timeout": 120000 }
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [860, 300],
-      "id": "n4",
-      "name": "Gemini via Proxy",
+      "position": [880, 0],
+      "id": "ecc46215-4d80-4a27-9507-fa891e89270a",
+      "name": "Gemini Image",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  const imageBase64 = response.imageBase64;\n  if (!imageBase64) continue;\n\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n  results.push({ json: { imageBase64, cloudTs: ts, cloudSig: sig, backgroundId: bgInfo.backgroundId, backgroundLabel: bgInfo.backgroundLabel, title: bgInfo.title, description: bgInfo.description, tags: bgInfo.tags, productId: bgInfo.productId, callbackUrl: bgInfo.callbackUrl, secret: bgInfo.secret } });\n}\n\nif (results.length === 0) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
+        "jsCode": "const crypto = require('crypto');\nconst CLOUD_SECRET = '9XsIgOi01RoxfE3PnRi0zWuZkEM';\nconst allResponses = $input.all();\nconst fanOutItems = $('Fan Out').all();\nconst results = [];\n\nfor (let i = 0; i < allResponses.length; i++) {\n  const response = allResponses[i].json;\n  const bgInfo = fanOutItems[i]?.json;\n  if (!bgInfo) continue;\n\n  let imageBase64 = null;\n  try {\n    const parts = response.candidates?.[0]?.content?.parts || [];\n    for (const part of parts) {\n      const idata = part.inlineData || part.inline_data;\n      if (idata && idata.data) {\n        imageBase64 = idata.data;\n        break;\n      }\n    }\n  } catch(e) {}\n\n  if (!imageBase64) continue;\n\n  const ts = Math.floor(Date.now() / 1000).toString();\n  const folder = 'amigurumi/gemini';\n  const sig = crypto.createHash('sha1').update('folder=' + folder + '&timestamp=' + ts + CLOUD_SECRET).digest('hex');\n  results.push({ json: { imageBase64, cloudTs: ts, cloudSig: sig, backgroundId: bgInfo.backgroundId, backgroundLabel: bgInfo.backgroundLabel, title: bgInfo.title, description: bgInfo.description, tags: bgInfo.tags, productId: bgInfo.productId, callbackUrl: bgInfo.callbackUrl, secret: bgInfo.secret } });\n}\n\nif (results.length === 0) {\n  const bg = fanOutItems[0]?.json || {};\n  return [{ json: { noImages: true, productId: bg.productId, callbackUrl: bg.callbackUrl, secret: bg.secret, title: bg.title || '', description: bg.description || '', tags: bg.tags || [] } }];\n}\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 300],
-      "id": "n5",
+      "position": [1104, 0],
+      "id": "3536559b-49a6-4f6a-bd71-5ab6e342501a",
       "name": "Prep Upload"
     },
     {
@@ -84,8 +91,8 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1300, 300],
-      "id": "n6",
+      "position": [1328, 0],
+      "id": "300f090d-8195-4599-a861-e5750aae5fa5",
       "name": "Cloudinary Upload",
       "onError": "continueRegularOutput"
     },
@@ -95,8 +102,8 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1520, 300],
-      "id": "n7",
+      "position": [1552, 0],
+      "id": "c2a07d62-b05a-41d8-a7a9-5c1a4432a8bb",
       "name": "Aggregate"
     },
     {
@@ -110,19 +117,47 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1740, 300],
-      "id": "n8",
+      "position": [1760, 0],
+      "id": "f459dbed-9c1a-4a6c-9748-b4a05bbf0c92",
       "name": "Send Callback"
     }
   ],
+  "pinData": {},
   "connections": {
-    "Webhook": { "main": [[{ "node": "GPT Content", "type": "main", "index": 0 }]] },
-    "GPT Content": { "main": [[{ "node": "Fan Out", "type": "main", "index": 0 }]] },
-    "Fan Out": { "main": [[{ "node": "Gemini via Proxy", "type": "main", "index": 0 }]] },
-    "Gemini via Proxy": { "main": [[{ "node": "Prep Upload", "type": "main", "index": 0 }]] },
-    "Prep Upload": { "main": [[{ "node": "Cloudinary Upload", "type": "main", "index": 0 }]] },
-    "Cloudinary Upload": { "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]] },
-    "Aggregate": { "main": [[{ "node": "Send Callback", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [[{ "node": "GPT Content", "type": "main", "index": 0 }]]
+    },
+    "GPT Content": {
+      "main": [[{ "node": "Get Base64", "type": "main", "index": 0 }]]
+    },
+    "Get Base64": {
+      "main": [[{ "node": "Fan Out", "type": "main", "index": 0 }]]
+    },
+    "Fan Out": {
+      "main": [[{ "node": "Gemini Image", "type": "main", "index": 0 }]]
+    },
+    "Gemini Image": {
+      "main": [[{ "node": "Prep Upload", "type": "main", "index": 0 }]]
+    },
+    "Prep Upload": {
+      "main": [[{ "node": "Cloudinary Upload", "type": "main", "index": 0 }]]
+    },
+    "Cloudinary Upload": {
+      "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]]
+    },
+    "Aggregate": {
+      "main": [[{ "node": "Send Callback", "type": "main", "index": 0 }]]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "edc29665-eab4-415b-bb87-a3ef0f78157a",
+  "meta": {
+    "instanceId": "c692584ccd79802f80c5b24b6a683cbd01bb237ba95e987f67642ed57a908df1"
+  },
+  "id": "0JsBa9fsPCSYQYsQ",
+  "tags": []
 }
