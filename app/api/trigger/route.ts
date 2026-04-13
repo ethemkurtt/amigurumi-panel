@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     // Update product status
     await Product.findByIdAndUpdate(productId, {
-      status: type === 'pdf' ? 'generating' : 'generating',
+      status: 'generating',
     });
 
     // Trigger n8n webhook
